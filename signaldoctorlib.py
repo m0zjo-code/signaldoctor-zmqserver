@@ -4,16 +4,26 @@ Jonathan Rawlinson 2018
 
 import numpy as np
 import pyfftw
+import pywt
 import math
 from scipy import signal
 from scipy.misc import imresize
 from numpy.fft import fftshift
+
+## SETUP
+import os.path
+import pickle
 
 ## DEBUG
 import matplotlib.pyplot as plt
 
 energy_threshold = -5
 smooth_stride = 1024
+fs = 2048000
+MaxFFTN = 20
+wisdom_file = "fftw_wisdom.wiz"
+
+
 
 def process_buffer(buffer_in):
     buffer_len = len(buffer_in)
@@ -37,7 +47,7 @@ def process_buffer(buffer_in):
     buffer_fft_smooth =  buffer_abs.reshape(-1, smooth_stride).mean(axis=1)
     
     #Search for signals of interest
-    buffer_peakdata = find_channels(buffer_fft_smooth, 0.1, 1)
+    buffer_peakdata = find_channels(buffer_fft_smooth, 0.01, 1)
     
     
     output_signals = []
@@ -56,11 +66,12 @@ def process_buffer(buffer_in):
     ## Generate Features ##
     
     for i in output_signals:
+        local_fs = fs * len(i)/buffer_len
         ## Generate normalised spectrogram
         NFFT = math.pow(2, int(math.log(math.sqrt(len(i)), 2) + 0.5)) #Arb constant... Need to analyse TODO
         #print("NFFT:", NFFT)
         
-        f, t, Zxx_cmplx = signal.stft(i, 2048000, nperseg=NFFT, return_onesided=False)
+        f, t, Zxx_cmplx = signal.stft(i, local_fs, nperseg=NFFT, return_onesided=False)
         
         
         f = fftshift(f)
@@ -68,21 +79,23 @@ def process_buffer(buffer_in):
         Zxx_cmplx = fftshift(Zxx_cmplx, axes=0)
         Zxx_cmplx = np.roll(Zxx_cmplx, int(len(f)/2), axis=0)
         Zxx_abs = np.abs(Zxx_cmplx)
-
+        
         Zxx_rs = normalise_spectrogram(Zxx_abs, 1024, 1024)
         
         # We have a array suitable for NNet
         
         ## Generate PSD ##
-        
+        #f, Pxx_spec = signal.welch(i, local_fs)
+        #plt.scatter(f, Pxx_spec)
+        #plt.show()
         
         ## Generate CWT ##
+        #coef, freqs=pywt.cwt(i,np.arange(1,129),'gaus1')
+        #plt.matshow(coef) 
+        #plt.show()
         
-        
-        plt.pcolormesh(Zxx_rs)
-        plt.show()
-    
-    
+        #plt.pcolormesh(Zxx_rs)
+        #plt.show()
         
 def normalise_spectrogram(input_array, newx, newy):
     arr_max = input_array.max()
@@ -90,7 +103,6 @@ def normalise_spectrogram(input_array, newx, newy):
     input_array = (input_array-arr_min)/(arr_max-arr_min)   
     
     return imresize(input_array, (newx, newy))
-
 
 def pad_fft(input_fft):
     #Pad to 2^n to speed up ifft
@@ -191,3 +203,44 @@ def find_channels(data, min_height, min_distance):
     #        peaklist[i-1][2] = (peaklist[i-1][2]+peaklist[i][2])/2
     #        del peaklist[i]
     return peaklist    
+
+def generate_wisdom(N, wisdom_f):
+    for n in range(1, N+1):
+        n = 2**n
+        a = np.ones(n, dtype=np.complex64)
+        a.real = np.random.rand(n)
+        a.imag = np.random.rand(n)
+
+        print("Vector of Len: %i generated! :)" % (len(a)))
+        fft_a = pyfftw.interfaces.numpy_fft.fft(a)
+        print("Generated FFT of len: %i" %(len(a)))
+
+    with open(wisdom_f, "wb") as f:
+        pickle.dump(pyfftw.export_wisdom(), f, pickle.HIGHEST_PROTOCOL)
+
+    print("Exported Wisdom file")
+    
+def test_generated_wisdom(N, wisdom_f):
+    with open(wisdom_f, "rb") as f:
+        dump = pickle.load(f)
+        # Now you can use the dump object as the original one  
+        pyfftw.import_wisdom(dump)
+        
+    for n in range(1, N+1):
+        n = 2**n
+        a = np.ones(n, dtype=np.complex64)
+        a.real = np.random.rand(n)
+        a.imag = np.random.rand(n)
+        fft_a = pyfftw.interfaces.numpy_fft.fft(a)
+    print("FFT tested up to %i" % (len(a)))
+
+
+## Leave at bottom of file ##
+if os.path.isfile(wisdom_file):
+    test_generated_wisdom(MaxFFTN, wisdom_file)
+    print("PyFFTW Wisdom File Exists - Loaded")
+    
+else:
+    print("PyFFTW Widom File Not Found - Generating up to %i" %(2**MaxFFTN))
+    generate_wisdom(MaxFFTN, wisdom_file)
+    print("PyFFTW Wisdom File Generated")
