@@ -1,6 +1,7 @@
 import sys
 import zmq
 import numpy as np
+import sys
 port = "5555"
 
 import signaldoctorlib as sdl
@@ -20,4 +21,5 @@ if __name__ == "__main__":
         string = socket.recv()
         buffer_data = np.fromstring(string, dtype = 'complex64')
         sdl.process_buffer(buffer_data)
+        sys.exit(1)
     
