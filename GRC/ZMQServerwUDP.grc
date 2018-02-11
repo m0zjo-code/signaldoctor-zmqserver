@@ -132,7 +132,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>2048000</value>
+      <value>2**21</value>
     </param>
   </block>
   <block>
@@ -159,7 +159,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>2**20</value>
+      <value>samp_rate/2</value>
     </param>
   </block>
   <block>
@@ -182,7 +182,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -225,7 +225,7 @@
     <key>analog_fastnoise_source_x</key>
     <param>
       <key>amp</key>
-      <value>1</value>
+      <value>0.5</value>
     </param>
     <param>
       <key>alias</key>
@@ -241,7 +241,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -300,7 +300,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
@@ -316,7 +316,7 @@
     </param>
     <param>
       <key>max_dev</key>
-      <value>5e3</value>
+      <value>10e3</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -355,11 +355,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1072, 80)</value>
+      <value>(976, 80)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -410,7 +410,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(880, 236)</value>
+      <value>(888, 228)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -435,6 +435,61 @@
     <param>
       <key>num_items</key>
       <value>vector_size</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+  </block>
+  <block>
+    <key>blocks_throttle</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1064, 92)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_throttle_0</value>
+    </param>
+    <param>
+      <key>ignoretag</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>samples_per_second</key>
+      <value>samp_rate</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>complex</value>
     </param>
     <param>
       <key>vlen</key>
@@ -594,7 +649,7 @@
     </param>
     <param>
       <key>bb_gain0</key>
-      <value>20</value>
+      <value>30</value>
     </param>
     <param>
       <key>bw0</key>
@@ -618,15 +673,15 @@
     </param>
     <param>
       <key>if_gain0</key>
-      <value>20</value>
+      <value>32</value>
     </param>
     <param>
       <key>iq_balance_mode0</key>
-      <value>0</value>
+      <value>2</value>
     </param>
     <param>
       <key>gain0</key>
-      <value>10</value>
+      <value>14</value>
     </param>
     <param>
       <key>ant10</key>
@@ -1997,7 +2052,7 @@
     </param>
     <param>
       <key>average</key>
-      <value>1.0</value>
+      <value>0.1</value>
     </param>
     <param>
       <key>axislabels</key>
@@ -2360,7 +2415,7 @@
     </param>
     <param>
       <key>color1</key>
-      <value>5</value>
+      <value>3</value>
     </param>
     <param>
       <key>label1</key>
@@ -2535,7 +2590,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(1056, 212)</value>
+      <value>(1104, 204)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -2649,13 +2704,19 @@
   </connection>
   <connection>
     <source_block_id>blocks_add_xx_0</source_block_id>
-    <sink_block_id>blocks_stream_to_vector_0</sink_block_id>
+    <sink_block_id>blocks_throttle_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_stream_to_vector_0</source_block_id>
     <sink_block_id>zeromq_pub_sink_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_throttle_0</source_block_id>
+    <sink_block_id>blocks_stream_to_vector_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
