@@ -28,7 +28,7 @@ def feature_gen(file_list, spec_size):
     return output_list
 
 
-input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V3/iq/tankcontroller"
+input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V3/iq/LTE"
 filename_list = []
 
 for file in os.listdir(input_folder):
