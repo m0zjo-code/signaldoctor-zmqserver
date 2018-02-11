@@ -1,7 +1,6 @@
 """
 Jonathan Rawlinson 2018
 """
-
 import numpy as np
 import pyfftw
 import pywt
@@ -17,18 +16,17 @@ import pickle
 ## DEBUG
 import matplotlib.pyplot as plt
 
+## TODO ADD TO CFG FILE
 energy_threshold = -5
 smooth_stride = 1024
-fs = 2048000
-MaxFFTN = 20
+fs = 2**21
+MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
-
-
 
 def process_buffer(buffer_in):
     buffer_len = len(buffer_in)
     print("Processing signal. Len:", buffer_len)
-    
+    buffer_in = IQ_Balance(buffer_in)
     #Do FFT - get it out of the way!
     buffer_fft = pyfftw.interfaces.numpy_fft.fft(buffer_in)
     ## Will now unroll FFT for ease of processing
@@ -46,8 +44,11 @@ def process_buffer(buffer_in):
     #Smooth buffer
     buffer_fft_smooth =  buffer_abs.reshape(-1, smooth_stride).mean(axis=1)
     
+    #plt.plot(buffer_fft_smooth)
+    #plt.show()
+    
     #Search for signals of interest
-    buffer_peakdata = find_channels(buffer_fft_smooth, 0.01, 1)
+    buffer_peakdata = find_channels(buffer_fft_smooth, 0.001, 1)
     
     
     output_signals = []
@@ -55,11 +56,13 @@ def process_buffer(buffer_in):
         #Decimate the signal in the frequency domain
         output_signal_fft = fd_decimate(buffer_fft, buffer_fft_smooth, peak_i, smooth_stride, 4)
         
+        if len(output_signal_fft) ==0:
+            continue
         #Pad FFT for faster computation
-        output_signal_fft = pad_fft(output_signal_fft)
+        #output_signal_fft = pad_fft(output_signal_fft)
         
         #Compute IFFT and add to list
-        output_signal = output_signals.append(pyfftw.interfaces.numpy_fft.ifft(output_signal_fft))
+        output_signals.append(pyfftw.interfaces.numpy_fft.ifft(output_signal_fft))
     
     print("We have %i signals!" % (len(output_signals)))
     
@@ -67,35 +70,40 @@ def process_buffer(buffer_in):
     
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
-        ## Generate normalised spectrogram
-        NFFT = math.pow(2, int(math.log(math.sqrt(len(i)), 2) + 0.5)) #Arb constant... Need to analyse TODO
-        #print("NFFT:", NFFT)
+        print("Resampled FS: ", local_fs)
+        generate_features(local_fs, i)
         
-        f, t, Zxx_cmplx = signal.stft(i, local_fs, nperseg=NFFT, return_onesided=False)
-        
-        
-        f = fftshift(f)
-        #f = np.roll(f, int(len(f)/2))
-        Zxx_cmplx = fftshift(Zxx_cmplx, axes=0)
+def generate_features(local_fs, iq_data, spec_size=256, roll = True):
+    ## Generate normalised spectrogram
+    NFFT = math.pow(2, int(math.log(math.sqrt(len(iq_data)), 2) + 0.5)) #Arb constant... Need to analyse TODO
+    #print("NFFT:", NFFT)
+    
+    f, t, Zxx_cmplx = signal.stft(iq_data, local_fs, nperseg=NFFT, return_onesided=False)
+    
+    f = fftshift(f)
+    #f = np.roll(f, int(len(f)/2))
+    Zxx_cmplx = fftshift(Zxx_cmplx, axes=0)
+    if roll:
         Zxx_cmplx = np.roll(Zxx_cmplx, int(len(f)/2), axis=0)
-        Zxx_abs = np.abs(Zxx_cmplx)
-        
-        Zxx_rs = normalise_spectrogram(Zxx_abs, 1024, 1024)
-        
-        # We have a array suitable for NNet
-        
-        ## Generate PSD ##
-        #f, Pxx_spec = signal.welch(i, local_fs)
-        #plt.scatter(f, Pxx_spec)
-        #plt.show()
-        
-        ## Generate CWT ##
-        #coef, freqs=pywt.cwt(i,np.arange(1,129),'gaus1')
-        #plt.matshow(coef) 
-        #plt.show()
-        
-        #plt.pcolormesh(Zxx_rs)
-        #plt.show()
+    
+    Zxx_abs = np.abs(Zxx_cmplx)
+    
+    Zxx_rs = normalise_spectrogram(Zxx_abs, spec_size, spec_size)
+    
+    # We have a array suitable for NNet
+    ## Generate spectral info by taking mean of spectrogram ##
+    PSD = np.mean(Zxx_rs, axis=1)
+    
+    ## Generate CWT ##
+    #widths = np.arange(1, 101)
+    #cwtmatr_real = signal.cwt(i.real, signal.ricker, widths)
+    #cwtmatr_imag = signal.cwt(i.imag, signal.ricker, widths)
+    #plt.pcolormesh(cwtmatr_real) 
+    #plt.show()
+    
+    #plt.pcolormesh(Zxx_rs)
+    #plt.show()
+    return Zxx_rs
         
 def normalise_spectrogram(input_array, newx, newy):
     arr_max = input_array.max()
@@ -103,6 +111,12 @@ def normalise_spectrogram(input_array, newx, newy):
     input_array = (input_array-arr_min)/(arr_max-arr_min)   
     
     return imresize(input_array, (newx, newy))
+
+def IQ_Balance(IQ_File):
+    """Remove DC offset from input data file"""
+    DC_Offset_Real = np.mean(np.real(IQ_File))
+    DC_Offset_Imag = np.mean(np.imag(IQ_File))
+    return IQ_File - (DC_Offset_Real + DC_Offset_Imag * 1j)
 
 def pad_fft(input_fft):
     #Pad to 2^n to speed up ifft
@@ -219,13 +233,16 @@ def generate_wisdom(N, wisdom_f):
         pickle.dump(pyfftw.export_wisdom(), f, pickle.HIGHEST_PROTOCOL)
 
     print("Exported Wisdom file")
-    
-def test_generated_wisdom(N, wisdom_f):
+
+
+def import_wisdom(wisdom_f):
     with open(wisdom_f, "rb") as f:
         dump = pickle.load(f)
         # Now you can use the dump object as the original one  
         pyfftw.import_wisdom(dump)
-        
+    
+    
+def test_generated_wisdom(N, wisdom_f):
     for n in range(1, N+1):
         n = 2**n
         a = np.ones(n, dtype=np.complex64)
@@ -237,7 +254,7 @@ def test_generated_wisdom(N, wisdom_f):
 
 ## Leave at bottom of file ##
 if os.path.isfile(wisdom_file):
-    test_generated_wisdom(MaxFFTN, wisdom_file)
+    import_wisdom(wisdom_file)
     print("PyFFTW Wisdom File Exists - Loaded")
     
 else:
