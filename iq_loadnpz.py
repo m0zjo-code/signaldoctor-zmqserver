@@ -28,14 +28,14 @@ def feature_gen(file_list, spec_size):
     return output_list
 
 
-input_folder = "exampleIQ"
+input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V3/iq/tankcontroller"
 filename_list = []
 
-for file in os.listdir("exampleIQ"):
+for file in os.listdir(input_folder):
     if file.endswith(".npz"):
-        filename_list.append(os.path.join("exampleIQ", file))
+        filename_list.append(os.path.join(input_folder, file))
         
-filename_list = ["exampleIQ/tankcontroller33.npz","exampleIQ/tankcontroller33.npz","exampleIQ/tankcontroller33.npz","exampleIQ/tankcontroller33.npz"]
+#filename_list = ["exampleIQ/tankcontroller33.npz","exampleIQ/tankcontroller33.npz","exampleIQ/tankcontroller33.npz","exampleIQ/tankcontroller33.npz"]
 
 spec_list = feature_gen(filename_list, 256)
 spec_aray = np.asarray(spec_list)

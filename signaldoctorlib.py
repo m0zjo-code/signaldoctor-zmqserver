@@ -3,7 +3,7 @@ Jonathan Rawlinson 2018
 """
 import numpy as np
 import pyfftw
-import pywt
+#import pywt
 import math
 from scipy import signal
 from scipy.misc import imresize
