@@ -1,5 +1,49 @@
 import numpy as np
+import signaldoctorlib as sdl
 import os
+import matplotlib.pyplot as plt
+
+## Takes training IQ data and generates training features
+
+def load_npz(filename):
+    data = np.load(filename)
+    iq_data = data['channel_iq']
+    fs = data['fs']
+    return fs, iq_data
+
+def feature_gen(file_list, spec_size):
+    output_list = [] ## This is going to be very big!
+    for filename in file_list:
+        fs, iq_data = load_npz(filename)
+        print("%i samples loaded at a rate of %f" % (len(iq_data), fs))
+        print("We have %f s of data" % (len(iq_data)/fs))
+
+        Zxx_dat = sdl.generate_features(fs, iq_data, 1024, False)
+        output_list.append(Zxx_dat)
+        #plt.pcolormesh(Zxx_dat)
+        #plt.show()
+    return output_list
+
+
+input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V3/iq"
+filename_list = []
+
+for sig in os.listdir(input_folder):
+    sig_input_folder = input_folder + "/" + sig
+    if os.path.isdir(sig_input_folder):
+        print(sig_input_folder)
+        for fileZ in os.listdir(sig_input_folder):
+            print(fileZ)
+            if fileZ.endswith(".npz"):
+                filename_list.append(os.path.join(sig_input_folder, fileZ))
+    
+        spec_list = feature_gen(filename_list, 256)
+        spec_aray = np.asarray(spec_list)
+        np.save(sig + '.npy', spec_aray)
+
+
+
+## Splits training data into training and test data
 
 train_testsplit = 0.6 ##
 
@@ -21,3 +65,24 @@ for filename in filename_list:
     x_len = len(x)
     np.random.shuffle(x)
     training_tmp, test_tmp = x[:int(x_len*train_testsplit),:], x[int(x_len*train_testsplit):,:]
+    for i in training_tmp:
+        X_train.append(i)
+        y_train.append(index)
+    
+    for i in test_tmp:
+        X_test.append(i)
+        y_test.append(index)
+    
+    index = index + 1
+
+y_train = np.asarray(y_train)
+
+X_train = np.asarray(X_train)
+X_train = X_train.reshape((X_train.shape[0], X_train.shape[1], X_train.shape[2], 1))
+
+y_test = np.asarray(y_test)
+
+X_test = np.asarray(X_test)
+X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], X_test.shape[2], 1))
+    
+np.savez("TrainingData.npz", X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
