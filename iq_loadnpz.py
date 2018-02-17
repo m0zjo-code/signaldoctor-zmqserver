@@ -7,6 +7,7 @@ import signaldoctorlib as sdl
 import os
 import matplotlib.pyplot as plt
 
+## Takes training IQ data and generates training features
 
 def load_npz(filename):
     data = np.load(filename)
