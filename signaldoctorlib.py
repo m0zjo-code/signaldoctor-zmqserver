@@ -50,17 +50,19 @@ def process_buffer(buffer_in):
     #Search for signals of interest
     buffer_peakdata = find_channels(buffer_fft_smooth, 0.001, 1)
     
-    
     output_signals = []
     for peak_i in buffer_peakdata:
         #Decimate the signal in the frequency domain
-        output_signal_fft = fd_decimate(buffer_fft, buffer_fft_smooth, peak_i, smooth_stride, 4)
+        output_signal_fft, bandwidth = fd_decimate(buffer_fft, buffer_fft_smooth, peak_i, smooth_stride, 4)
+        
+        buf_len = len(buffer_fft)
         
         if len(output_signal_fft) ==0:
             continue
         #Pad FFT for faster computation
         #output_signal_fft = pad_fft(output_signal_fft)
-        
+        #bandwidth = ((peak_i[1]-peak_i[0])/smooth_stride) * fs
+        print(bandwidth)
         #Compute IFFT and add to list
         output_signals.append(pyfftw.interfaces.numpy_fft.ifft(output_signal_fft))
     
@@ -68,12 +70,19 @@ def process_buffer(buffer_in):
     
     ## Generate Features ##
     
+    output_features = []
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
         print("Resampled FS: ", local_fs)
-        generate_features(local_fs, i)
-        
+        features = generate_features(local_fs, i)
+        features.append(local_fs)
+        output_features.append(features)
+    
+    return output_features
+    
+    
 def generate_features(local_fs, iq_data, spec_size=256, roll = True):
+    
     ## Generate normalised spectrogram
     NFFT = math.pow(2, int(math.log(math.sqrt(len(iq_data)), 2) + 0.5)) #Arb constant... Need to analyse TODO
     #print("NFFT:", NFFT)
@@ -94,6 +103,13 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True):
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_rs, axis=1)
     
+    
+    
+    #TD_pwr = np.sqrt(np.square(iq_data.real) + np.square(iq_data.imag))
+    
+    #plt.plot(TD_pwr)
+    #plt.show()
+    
     ## Generate CWT ##
     #widths = np.arange(1, 101)
     #cwtmatr_real = signal.cwt(i.real, signal.ricker, widths)
@@ -103,7 +119,10 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True):
     
     #plt.pcolormesh(Zxx_rs)
     #plt.show()
-    return Zxx_rs
+    
+    output_list = [Zxx_rs, PSD]
+    
+    return output_list
         
 def normalise_spectrogram(input_array, newx, newy):
     arr_max = input_array.max()
@@ -136,7 +155,7 @@ def fd_decimate(fft_data, fft_data_smoothed, peakinfo, smooth_stride, osr):
     
     #Slice FFT
     output_fft = fft_data[slicer_lower:slicer_upper]
-    return output_fft
+    return output_fft, bw
 
 def find_3db_bw_JR_single_peak(data, peak):
     """ Find bandwidth of single peak """
