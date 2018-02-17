@@ -3,7 +3,7 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Sun Feb 11 11:36:43 2018
+# Generated: Sat Feb 17 16:49:34 2018
 ##################################################
 
 if __name__ == '__main__':
@@ -65,8 +65,8 @@ class top_block(gr.top_block, Qt.QWidget):
         ##################################################
         # Blocks
         ##################################################
-        self.zeromq_sub_source_0 = zeromq.sub_source(gr.sizeof_gr_complex, vector_size, 'tcp://127.0.0.1:5555', 100, False, -1)
-        self.zeromq_pub_sink_0 = zeromq.pub_sink(gr.sizeof_gr_complex, vector_size, 'tcp://127.0.0.1:5555', 100, False, -1)
+        self.zeromq_sub_source_0 = zeromq.sub_source(gr.sizeof_gr_complex, vector_size, "tcp://127.0.0.1:5555", 100, False, -1)
+        self.zeromq_pub_sink_0 = zeromq.pub_sink(gr.sizeof_gr_complex, vector_size, "tcp://127.0.0.1:5555", 100, False, -1)
         self.qtgui_waterfall_sink_x_0 = qtgui.waterfall_sink_c(
         	4096, #size
         	firdes.WIN_BLACKMAN_hARRIS, #wintype
@@ -77,7 +77,6 @@ class top_block(gr.top_block, Qt.QWidget):
         )
         self.qtgui_waterfall_sink_x_0.set_update_time(0.10)
         self.qtgui_waterfall_sink_x_0.enable_grid(False)
-        self.qtgui_waterfall_sink_x_0.enable_axis_labels(True)
         
         if not True:
           self.qtgui_waterfall_sink_x_0.disable_legend()
@@ -85,8 +84,8 @@ class top_block(gr.top_block, Qt.QWidget):
         if "complex" == "float" or "complex" == "msg_float":
           self.qtgui_waterfall_sink_x_0.set_plot_pos_half(not True)
         
-        labels = ['', '', '', '', '',
-                  '', '', '', '', '']
+        labels = ["", "", "", "", "",
+                  "", "", "", "", ""]
         colors = [3, 0, 0, 0, 0,
                   0, 0, 0, 0, 0]
         alphas = [1.0, 1.0, 1.0, 1.0, 1.0,
@@ -113,12 +112,10 @@ class top_block(gr.top_block, Qt.QWidget):
         )
         self.qtgui_freq_sink_x_0.set_update_time(0.10)
         self.qtgui_freq_sink_x_0.set_y_axis(-140, 10)
-        self.qtgui_freq_sink_x_0.set_y_label('Relative Gain', 'dB')
         self.qtgui_freq_sink_x_0.set_trigger_mode(qtgui.TRIG_MODE_FREE, 0.0, 0, "")
         self.qtgui_freq_sink_x_0.enable_autoscale(True)
         self.qtgui_freq_sink_x_0.enable_grid(False)
         self.qtgui_freq_sink_x_0.set_fft_average(0.1)
-        self.qtgui_freq_sink_x_0.enable_axis_labels(True)
         self.qtgui_freq_sink_x_0.enable_control_panel(False)
         
         if not True:
@@ -127,8 +124,8 @@ class top_block(gr.top_block, Qt.QWidget):
         if "complex" == "float" or "complex" == "msg_float":
           self.qtgui_freq_sink_x_0.set_plot_pos_half(not True)
         
-        labels = ['', '', '', '', '',
-                  '', '', '', '', '']
+        labels = ["", "", "", "", "",
+                  "", "", "", "", ""]
         widths = [1, 1, 1, 1, 1,
                   1, 1, 1, 1, 1]
         colors = ["blue", "red", "green", "black", "cyan",
@@ -155,7 +152,6 @@ class top_block(gr.top_block, Qt.QWidget):
         	quad_rate=samp_rate/4,
         	tau=75e-6,
         	max_dev=10e3,
-        	fh=-1.0,
                 )
         self.analog_fastnoise_source_x_0_0 = analog.fastnoise_source_c(analog.GR_GAUSSIAN, 0.5, 0, 8192)
         self.analog_fastnoise_source_x_0 = analog.fastnoise_source_f(analog.GR_GAUSSIAN, 1, 0, 8192)
@@ -178,15 +174,16 @@ class top_block(gr.top_block, Qt.QWidget):
         self.settings.setValue("geometry", self.saveGeometry())
         event.accept()
 
+
     def get_samp_rate(self):
         return self.samp_rate
 
     def set_samp_rate(self, samp_rate):
         self.samp_rate = samp_rate
         self.set_vector_size(self.samp_rate/2)
+        self.blocks_throttle_0.set_sample_rate(self.samp_rate)
         self.qtgui_waterfall_sink_x_0.set_frequency_range(0, self.samp_rate)
         self.qtgui_freq_sink_x_0.set_frequency_range(0, self.samp_rate)
-        self.blocks_throttle_0.set_sample_rate(self.samp_rate)
 
     def get_vector_size(self):
         return self.vector_size
