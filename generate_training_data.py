@@ -69,6 +69,7 @@ for filez in os.listdir(input_folder):
         filename_list.append(os.path.join(input_folder, filez))
 
 index = 0
+index_data = []
 for filename in filename_list:
     x = np.load(filename)
     x_len = len(x)
@@ -82,8 +83,15 @@ for filename in filename_list:
         X_test.append(i)
         y_test.append(index)
     
-    print(filename, "===", index)
+    line = filename + ",%s"%(index)
+    index_data.append(line)
+    print(line)
     index = index + 1
+
+thefile = open('spec_data_index.csv', 'w')
+for i in index_data:
+    thefile.write("%s\n" % i)
+thefile.close()
 
 y_train = np.asarray(y_train)
 
@@ -116,6 +124,7 @@ for filez in os.listdir(input_folder):
         filename_list.append(os.path.join(input_folder, filez))
 
 index = 0
+index_data = []
 for filename in filename_list:
     x = np.load(filename)
     x_len = len(x)
@@ -128,8 +137,17 @@ for filename in filename_list:
     for i in test_tmp:
         X_test.append(i)
         y_test.append(index)
-    
+        
+    line = filename + ",%s"%(index)
+    index_data.append(line)
+    print(line)
     index = index + 1
+
+thefile = open('psd_data_index.csv', 'w')
+for i in index_data:
+    thefile.write("%s\n" % i)
+thefile.close()
+
 
 y_train = np.asarray(y_train)
 

@@ -3,7 +3,7 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Sat Feb 17 16:49:34 2018
+# Generated: Sun Feb 18 10:19:37 2018
 ##################################################
 
 if __name__ == '__main__':
@@ -182,8 +182,8 @@ class top_block(gr.top_block, Qt.QWidget):
         self.samp_rate = samp_rate
         self.set_vector_size(self.samp_rate/2)
         self.blocks_throttle_0.set_sample_rate(self.samp_rate)
-        self.qtgui_waterfall_sink_x_0.set_frequency_range(0, self.samp_rate)
         self.qtgui_freq_sink_x_0.set_frequency_range(0, self.samp_rate)
+        self.qtgui_waterfall_sink_x_0.set_frequency_range(0, self.samp_rate)
 
     def get_vector_size(self):
         return self.vector_size
