@@ -65,7 +65,7 @@ if __name__ == "__main__":
         spec = np.asarray(extracted_features[0][0])
         #plt.pcolormesh(extracted_features[0][0]) 
         #plt.show()
-        classify_spectrogram(spec, loaded_model)
+        #classify_spectrogram(spec, loaded_model)
         
         sys.exit(1)
     

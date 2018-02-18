@@ -25,34 +25,33 @@ MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 500 ##ms 
 
-#def load_IQ_file(input_filename):
-    #"""Read .wav file containing IQ data from SDR#"""
-    #fs, samples = wavfileread(input_filename)
-    #return fs, len(samples), samples
+def load_IQ_file(input_filename):
+    """Read .wav file containing IQ data from SDR#"""
+    fs, samples = wavfileread(input_filename)
+    return fs, len(samples), samples
 
-#def import_buffer(iq_file,fs,start,end):
-    #"""Extract buffer from array"""
-    #input_frame = iq_file[int(start):int(end)] 
-    #return input_frame
+def import_buffer(iq_file,fs,start,end):
+    """Extract buffer from array"""
+    input_frame = iq_file[int((fs/1000)*start):int((fs/1000)*end)] 
+    return input_frame
 
-#def process_iq_file(filename):
-    #fs, file_len, iq_file = load_IQ_file(filename)
-    #print("Len file: ", file_len ) 
-    #length = 2**22
-    #buf_no = int(np.floor(file_len/(length)))
-    #print("Length of buffer: ", length/fs, "s")
-    #for i in range(0, buf_no):
-        #print("Processing buffer %i of %i" % (i+1 , buf_no))
-        ### Read IQ data into memory
-        #in_frame = import_buffer(iq_file, fs, i*length, (i+1)*length)
-        #print("IQ Len: ", len(in_frame))
-        #extracted_features = process_buffer(in_frame)
-
+def process_iq_file(filename):
+    fs, file_len, iq_file = load_IQ_file(filename)
+    print("Len file: ", file_len ) 
+    length = iq_buffer_len
+    buf_no = int(np.floor(file_len/(length)))
+    print("Length of buffer: ", length/fs, "s")
+    for i in range(0, buf_no):
+        print("Processing buffer %i of %i" % (i+1 , buf_no))
+        ## Read IQ data into memory
+        in_frame = import_buffer(iq_file, fs, i*length, (i+1)*length)
+        print("IQ Len: ", len(in_frame))
+        extracted_features = process_buffer(in_frame)
 
 def process_buffer(buffer_in):
     buffer_len = len(buffer_in)
     print("Processing signal. Len:", buffer_len)
-    buffer_in = IQ_Balance(buffer_in)
+    #buffer_in = IQ_Balance(buffer_in)
     #Do FFT - get it out of the way!
     buffer_fft = pyfftw.interfaces.numpy_fft.fft(buffer_in)
     ## Will now unroll FFT for ease of processing
@@ -69,8 +68,13 @@ def process_buffer(buffer_in):
     
     #Smooth buffer
     #buffer_fft_smooth = buffer_abs
-    buffer_fft_smooth =  buffer_abs.reshape(-1, smooth_stride).mean(axis=1)
     
+    ## "Bin" FFT
+    ## Should probably compute moving avg here too
+    buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
+    
+    #buffer_fft_smooth =  buffer_abs.reshape(-1, smooth_stride).mean(axis=1)
+        
     print("Smoothed buffer len:", len(buffer_fft_smooth))
     #plt.plot(buffer_fft_smooth)
     #plt.show()
@@ -90,7 +94,7 @@ def process_buffer(buffer_in):
         #Pad FFT for faster computation
         #output_signal_fft = pad_fft(output_signal_fft)
         #bandwidth = ((peak_i[1]-peak_i[0])/smooth_stride) * fs
-        print(bandwidth)
+        #print(bandwidth)
         #Compute IFFT and add to list
         output_signals.append(pyfftw.interfaces.numpy_fft.ifft(output_signal_fft))
     
