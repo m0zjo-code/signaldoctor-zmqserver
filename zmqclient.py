@@ -30,11 +30,11 @@ if __name__ == "__main__":
     print("Running: ", sys.argv[0])
     print("Number of arguments: ", len(sys.argv))
     
-    #if  (len(sys.argv) == 3):
-        #print("Reading local IQ")
-        #print("Input file: ", sys.argv[2])
-        #sdl.process_iq_file(sys.argv[2])
-        #sys.exit(1)
+    if  (len(sys.argv) == 3):
+        print("Reading local IQ")
+        print("Input file: ", sys.argv[2])
+        sdl.process_iq_file(sys.argv[2])
+        sys.exit(1)
     
     # Socket to talk to server
     context = zmq.Context()
