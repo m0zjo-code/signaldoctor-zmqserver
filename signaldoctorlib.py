@@ -47,6 +47,7 @@ def import_buffer(iq_file,fs,start,end):
 
 ## From https://stackoverflow.com/questions/14267555/find-the-smallest-power-of-2-greater-than-n-in-python
 def shift_bit_length(x):
+    x = int(x)
     return 1<<(x-1).bit_length()
 
 
