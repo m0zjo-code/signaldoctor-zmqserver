@@ -35,7 +35,7 @@ def import_buffer(iq_file,fs,start,end):
     #fs, samples = scipy.io.wavfile.read(input_filename)
     #print("\nFile Read:", input_filename, " - Fs:", fs)
     #print(len(samples))
-    input_frame = iq_file[int((fs/1000)*start):int((fs/1000)*end)]
+    input_frame = np.transpose(iq_file[int((fs/1000)*start):int((fs/1000)*end)])
     input_frame_iq = np.empty(input_frame.shape[:-1], dtype=np.complex)
     input_frame_iq.real = input_frame[..., 0]
     input_frame_iq.imag = input_frame[..., 1]
