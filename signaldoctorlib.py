@@ -73,6 +73,7 @@ def process_buffer(buffer_in):
     ## Should probably compute moving avg here too
     buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
     
+    print(buffer_fft_smooth.shape)
     #buffer_fft_smooth =  buffer_abs.reshape(-1, smooth_stride).mean(axis=1)
         
     print("Smoothed buffer len:", len(buffer_fft_smooth))
