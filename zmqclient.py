@@ -30,6 +30,14 @@ def classify_spectrogram(input_array, model):
 
 if __name__ == "__main__":
     
+    
+    print("Running: ", sys.argv[0])
+    print("Number of arguments: ", len(sys.argv))
+    
+    if  (sys.argv[0] == "-i"):
+        print("Reading IQ")
+        sys.exit(1)
+    
     # Socket to talk to server
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
