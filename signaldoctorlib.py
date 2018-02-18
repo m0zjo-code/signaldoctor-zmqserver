@@ -53,7 +53,7 @@ def process_iq_file(filename):
     for i in range(0, buf_no):
         print("Processing buffer %i of %i" % (i+1 , buf_no))
         ## Read IQ data into memory
-        in_frame = import_buffer(iq_file, fs, i*length, (i+1)*length)
+        in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         
         print("IQ Len: ", len(in_frame))
         extracted_features = process_buffer(in_frame)
