@@ -6,6 +6,7 @@ import pyfftw
 #import pywt
 import math
 from scipy import signal
+from scipy.io.wavfile import read as wavfileread
 from scipy.misc import imresize
 from numpy.fft import fftshift
 
@@ -22,6 +23,31 @@ smooth_stride = 1024
 fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
+iq_buffer_len = 500 ##ms 
+
+#def load_IQ_file(input_filename):
+    #"""Read .wav file containing IQ data from SDR#"""
+    #fs, samples = wavfileread(input_filename)
+    #return fs, len(samples), samples
+
+#def import_buffer(iq_file,fs,start,end):
+    #"""Extract buffer from array"""
+    #input_frame = iq_file[int(start):int(end)] 
+    #return input_frame
+
+#def process_iq_file(filename):
+    #fs, file_len, iq_file = load_IQ_file(filename)
+    #print("Len file: ", file_len ) 
+    #length = 2**22
+    #buf_no = int(np.floor(file_len/(length)))
+    #print("Length of buffer: ", length/fs, "s")
+    #for i in range(0, buf_no):
+        #print("Processing buffer %i of %i" % (i+1 , buf_no))
+        ### Read IQ data into memory
+        #in_frame = import_buffer(iq_file, fs, i*length, (i+1)*length)
+        #print("IQ Len: ", len(in_frame))
+        #extracted_features = process_buffer(in_frame)
+
 
 def process_buffer(buffer_in):
     buffer_len = len(buffer_in)
@@ -42,13 +68,15 @@ def process_buffer(buffer_in):
         return None
     
     #Smooth buffer
+    #buffer_fft_smooth = buffer_abs
     buffer_fft_smooth =  buffer_abs.reshape(-1, smooth_stride).mean(axis=1)
     
+    print("Smoothed buffer len:", len(buffer_fft_smooth))
     #plt.plot(buffer_fft_smooth)
     #plt.show()
     
     #Search for signals of interest
-    buffer_peakdata = find_channels(buffer_fft_smooth, 0.001, 1)
+    buffer_peakdata = find_channels(buffer_fft_smooth, 0.5, 1)
     
     output_signals = []
     for peak_i in buffer_peakdata:
@@ -103,8 +131,6 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True):
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_rs, axis=1)
     
-    
-    
     #TD_pwr = np.sqrt(np.square(iq_data.real) + np.square(iq_data.imag))
     
     #plt.plot(TD_pwr)
@@ -137,14 +163,14 @@ def IQ_Balance(IQ_File):
     DC_Offset_Imag = np.mean(np.imag(IQ_File))
     return IQ_File - (DC_Offset_Real + DC_Offset_Imag * 1j)
 
-def pad_fft(input_fft):
-    #Pad to 2^n to speed up ifft
-    output_len = len(input_fft)
-    required_len = 2**np.ceil(np.log2(output_len))
-    out_deficit = required_len-output_len
-    zeros_add = int(out_deficit/2)
-    output_fft = np.pad(input_fft, (zeros_add, zeros_add), 'constant', constant_values=(0, 0))
-    return output_fft
+#def pad_fft(input_fft):
+    ##Pad to 2^n to speed up ifft
+    #output_len = len(input_fft)
+    #required_len = 2**np.ceil(np.log2(output_len))
+    #out_deficit = required_len-output_len
+    #zeros_add = int(out_deficit/2)
+    #output_fft = np.pad(input_fft, (zeros_add, zeros_add), 'constant', constant_values=(0, 0))
+    #return output_fft
     
 def fd_decimate(fft_data, fft_data_smoothed, peakinfo, smooth_stride, osr):
     #Calculate 3dB peak bandwidth

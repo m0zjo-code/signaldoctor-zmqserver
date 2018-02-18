@@ -8,35 +8,33 @@ import signaldoctorlib as sdl
 
 MODEL_NAME = "spec_model"
 
-from keras.models import model_from_json
+from keras.models import model_from_json    
 
 
+## DEBUG
+import matplotlib.pyplot as plt
+        
 def classify_spectrogram(input_array, model):
     
     print("Classify Spec")
     print("Data Shape:", input_array.shape)
-    
     print(input_array)
     input_array = input_array.reshape((1, input_array.shape[0], input_array.shape[1], 1))
-    
     prediction = loaded_model.predict(input_array)
-    
     print(prediction)
-    
-    
     prediction = prediction.flat[0]
     
 
 
 if __name__ == "__main__":
-    
-    
     print("Running: ", sys.argv[0])
     print("Number of arguments: ", len(sys.argv))
     
-    if  (sys.argv[0] == "-i"):
-        print("Reading IQ")
-        sys.exit(1)
+    #if  (len(sys.argv) == 3):
+        #print("Reading local IQ")
+        #print("Input file: ", sys.argv[2])
+        #sdl.process_iq_file(sys.argv[2])
+        #sys.exit(1)
     
     # Socket to talk to server
     context = zmq.Context()
@@ -65,7 +63,8 @@ if __name__ == "__main__":
         print(type(loaded_model))
         
         spec = np.asarray(extracted_features[0][0])
-        
+        #plt.pcolormesh(extracted_features[0][0]) 
+        #plt.show()
         classify_spectrogram(spec, loaded_model)
         
         sys.exit(1)
