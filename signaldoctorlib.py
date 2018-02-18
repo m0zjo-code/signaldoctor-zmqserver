@@ -31,9 +31,18 @@ def load_IQ_file(input_filename):
     return fs, len(samples), samples
 
 def import_buffer(iq_file,fs,start,end):
-    """Extract buffer from array"""
-    input_frame = iq_file[int((fs/1000)*start):int((fs/1000)*end)] 
-    return input_frame
+    """Extract buffer from array and balance the IQ streams"""
+    #fs, samples = scipy.io.wavfile.read(input_filename)
+    #print("\nFile Read:", input_filename, " - Fs:", fs)
+    #print(len(samples))
+    input_frame = iq_file[int((fs/1000)*start):int((fs/1000)*end)]
+    input_frame_iq = np.empty(input_frame.shape[:-1], dtype=np.complex)
+    input_frame_iq.real = input_frame[..., 0]
+    input_frame_iq.imag = input_frame[..., 1]
+    # Balance IQ file
+    input_frame_iq = IQ_Balance(input_frame_iq)
+
+    return input_frame_iq, fs
 
 def process_iq_file(filename):
     fs, file_len, iq_file = load_IQ_file(filename)
