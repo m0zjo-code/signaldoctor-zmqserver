@@ -44,10 +44,21 @@ def import_buffer(iq_file,fs,start,end):
 
     return input_frame_iq, fs
 
+
+## From https://stackoverflow.com/questions/14267555/find-the-smallest-power-of-2-greater-than-n-in-python
+def shift_bit_length(x):
+    return 1<<(x-1).bit_length()
+
+
 def process_iq_file(filename):
+    
     fs, file_len, iq_file = load_IQ_file(filename)
     print("Len file: ", file_len ) 
+    
+    ##Calculate buffer length
     length = (fs/1000)*iq_buffer_len
+    length = shift_bit_length(length)
+    
     buf_no = int(np.floor(file_len/(length)))
     print("Length of buffer: ", length/fs, "s")
     for i in range(0, buf_no):
