@@ -8,34 +8,40 @@ import signaldoctorlib as sdl
 
 MODEL_NAME = "spec_model"
 
-from keras.models import model_from_json    
+from keras.models import model_from_json
+
+LOG_IQ = True
 
 
 ## DEBUG
 import matplotlib.pyplot as plt
-        
+
 def classify_spectrogram(input_array, model):
-    
+
     print("Classify Spec")
     print("Data Shape:", input_array.shape)
-    print(input_array)
     input_array = input_array.reshape((1, input_array.shape[0], input_array.shape[1], 1))
     prediction = loaded_model.predict(input_array)
     print(prediction)
     prediction = prediction.flat[0]
-    
+
 
 
 if __name__ == "__main__":
+    IQ_LOCAL = False
+    IQ_FILE = None
+    
     print("Running: ", sys.argv[0])
     print("Number of arguments: ", len(sys.argv))
-    
+
     if  (len(sys.argv) == 3):
         print("Reading local IQ")
         print("Input file: ", sys.argv[2])
-        sdl.process_iq_file(sys.argv[2])
+        IQ_LOCAL = True
+        IQ_FILE = sys.argv[2]
+        sdl.process_iq_file(IQ_FILE)
         sys.exit(1)
-    
+
     # Socket to talk to server
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
@@ -43,8 +49,8 @@ if __name__ == "__main__":
     socket.connect ("tcp://127.0.0.1:5555")
 
     socket.setsockopt_string(zmq.SUBSCRIBE, "")
-    
-    
+
+
     ## LOAD SPECTROGRAM NETWORK ##
     json_file = open('%s.nn'%(MODEL_NAME), 'r')
     loaded_model_json = json_file.read()
@@ -53,22 +59,25 @@ if __name__ == "__main__":
     # load weights into new model
     loaded_model.load_weights("%s.h5"%(MODEL_NAME))
     print("Loaded model from disk")
-    
+
     while True:
         string = socket.recv()
         buffer_data = np.fromstring(string, dtype = 'complex64')
-        extracted_features = sdl.process_buffer(buffer_data)
-        
-        
-        print(type(loaded_model))
-        
+        extracted_features, extracted_iq = sdl.process_buffer(buffer_data)
+
+        # We now have the features and iq data
+        if LOG_IQ:
+            print("Logging.....")
+            for iq_channel in extracted_iq:
+                sdl.save_IQ_buffer(iq_channel[0], iq_channel[1])
+
         spec = np.asarray(extracted_features[0][0])
-        #plt.pcolormesh(extracted_features[0][0]) 
+        #plt.pcolormesh(extracted_features[0][0])
         #plt.show()
-        #classify_spectrogram(spec, loaded_model)
-        
-        sys.exit(1)
-    
+        classify_spectrogram(spec, loaded_model)
+
+        #sys.exit(1)
 
 
-    
+
+
