@@ -8,11 +8,11 @@ import numpy as np
 from keras.datasets import mnist
 from keras.models import Sequential
 from keras.layers import Dense, Dropout
-from keras.optimizers import RMSprop
+from keras.optimizers import *
 
 batch_size = 64
-num_classes = 10
-epochs = 2000
+#num_classes = 10
+epochs = 100
 
 # the data, shuffled and split between train and test sets
 
@@ -35,10 +35,10 @@ model.add(Dropout(0.2))
 model.add(Dense(2**7, activation='sigmoid'))
 model.add(Dropout(0.2))
 model.add(Dense(2**7, activation='relu'))
-model.add(Dropout(0.2))
+model.add(Dropout(0.4))
 model.add(Dense(2**7, activation='relu'))
 model.add(Dropout(0.2))
-model.add(Dense(2**7, activation='relu'))
+model.add(Dense(2**6, activation='relu'))
 model.add(Dropout(0.2))
 model.add(Dense(2**5, activation='relu'))
 model.add(Dropout(0.2))
@@ -47,7 +47,7 @@ model.add(Dense(num_classes, activation='softmax'))
 model.summary()
 
 model.compile(loss='categorical_crossentropy',
-              optimizer=RMSprop(),
+              optimizer=Adamax(),
               metrics=['accuracy'])
 
 history = model.fit(x_train, y_train,
