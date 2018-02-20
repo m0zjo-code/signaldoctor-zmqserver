@@ -3,7 +3,7 @@
 ##################################################
 # GNU Radio Python Flow Graph
 # Title: Top Block
-# Generated: Mon Feb 19 13:02:06 2018
+# Generated: Tue Feb 20 16:28:21 2018
 ##################################################
 
 if __name__ == '__main__':
@@ -20,6 +20,7 @@ from PyQt4 import Qt
 from gnuradio import analog
 from gnuradio import blocks
 from gnuradio import eng_notation
+from gnuradio import filter
 from gnuradio import gr
 from gnuradio import qtgui
 from gnuradio import zeromq
@@ -143,9 +144,17 @@ class top_block(gr.top_block, Qt.QWidget):
         
         self._qtgui_freq_sink_x_0_win = sip.wrapinstance(self.qtgui_freq_sink_x_0.pyqwidget(), Qt.QWidget)
         self.top_layout.addWidget(self._qtgui_freq_sink_x_0_win)
+        self.freq_xlating_fft_filter_ccc_0_0 = filter.freq_xlating_fft_filter_ccc(1, (128, ), -samp_rate/4, samp_rate)
+        self.freq_xlating_fft_filter_ccc_0_0.set_nthreads(1)
+        self.freq_xlating_fft_filter_ccc_0_0.declare_sample_delay(150000)
+        self.freq_xlating_fft_filter_ccc_0 = filter.freq_xlating_fft_filter_ccc(1, (128, ), samp_rate/16, samp_rate)
+        self.freq_xlating_fft_filter_ccc_0.set_nthreads(1)
+        self.freq_xlating_fft_filter_ccc_0.declare_sample_delay(0)
         self.blocks_vector_to_stream_0 = blocks.vector_to_stream(gr.sizeof_gr_complex*1, vector_size)
         self.blocks_throttle_0 = blocks.throttle(gr.sizeof_gr_complex*1, samp_rate,True)
         self.blocks_stream_to_vector_0 = blocks.stream_to_vector(gr.sizeof_gr_complex*1, vector_size)
+        self.blocks_multiply_const_vxx_0 = blocks.multiply_const_vcc((0.75, ))
+        self.blocks_add_xx_0_0 = blocks.add_vcc(1)
         self.blocks_add_xx_0 = blocks.add_vcc(1)
         self.analog_nbfm_tx_0 = analog.nbfm_tx(
         	audio_rate=samp_rate/64,
@@ -163,10 +172,15 @@ class top_block(gr.top_block, Qt.QWidget):
         self.connect((self.analog_fastnoise_source_x_0_0, 0), (self.blocks_add_xx_0, 0))    
         self.connect((self.analog_nbfm_tx_0, 0), (self.blocks_add_xx_0, 1))    
         self.connect((self.blocks_add_xx_0, 0), (self.blocks_throttle_0, 0))    
+        self.connect((self.blocks_add_xx_0_0, 0), (self.blocks_stream_to_vector_0, 0))    
+        self.connect((self.blocks_multiply_const_vxx_0, 0), (self.blocks_add_xx_0_0, 1))    
         self.connect((self.blocks_stream_to_vector_0, 0), (self.zeromq_pub_sink_0, 0))    
-        self.connect((self.blocks_throttle_0, 0), (self.blocks_stream_to_vector_0, 0))    
+        self.connect((self.blocks_throttle_0, 0), (self.freq_xlating_fft_filter_ccc_0, 0))    
+        self.connect((self.blocks_throttle_0, 0), (self.freq_xlating_fft_filter_ccc_0_0, 0))    
         self.connect((self.blocks_vector_to_stream_0, 0), (self.qtgui_freq_sink_x_0, 0))    
         self.connect((self.blocks_vector_to_stream_0, 0), (self.qtgui_waterfall_sink_x_0, 0))    
+        self.connect((self.freq_xlating_fft_filter_ccc_0, 0), (self.blocks_add_xx_0_0, 0))    
+        self.connect((self.freq_xlating_fft_filter_ccc_0_0, 0), (self.blocks_multiply_const_vxx_0, 0))    
         self.connect((self.zeromq_sub_source_0, 0), (self.blocks_vector_to_stream_0, 0))    
 
     def closeEvent(self, event):
@@ -182,8 +196,10 @@ class top_block(gr.top_block, Qt.QWidget):
         self.samp_rate = samp_rate
         self.set_vector_size(self.samp_rate/2)
         self.blocks_throttle_0.set_sample_rate(self.samp_rate)
-        self.qtgui_waterfall_sink_x_0.set_frequency_range(0, self.samp_rate)
+        self.freq_xlating_fft_filter_ccc_0.set_center_freq(self.samp_rate/16)
+        self.freq_xlating_fft_filter_ccc_0_0.set_center_freq(-self.samp_rate/4)
         self.qtgui_freq_sink_x_0.set_frequency_range(0, self.samp_rate)
+        self.qtgui_waterfall_sink_x_0.set_frequency_range(0, self.samp_rate)
 
     def get_vector_size(self):
         return self.vector_size
