@@ -27,7 +27,7 @@ smooth_stride = 1024
 fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
-iq_buffer_len = 500 ##ms
+iq_buffer_len = 1000 ##ms
 
 
 def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/'):
@@ -82,22 +82,27 @@ def process_iq_file(filename):
         print("Processing buffer %i of %i" % (i+1 , buf_no))
         ## Read IQ data into memory
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
-        save_IQ_buffer(in_frame, fs)
         print("IQ Len: ", len(in_frame))
-        extracted_features = process_buffer(in_frame)
+        extracted_features, extracted_iq = process_buffer(in_frame)
+        
+        for j in extracted_iq:
+            save_IQ_buffer(j[0], j[1])
 
 
 def process_buffer(buffer_in):
+    #plt.psd(buffer_in)
+    #plt.show()
+    #generate_features(fs, buffer_in, roll = False, plot=True)
+    
     buffer_len = len(buffer_in)
     print("Processing signal. Len:", buffer_len)
-    #buffer_in = IQ_Balance(buffer_in)
     #Do FFT - get it out of the way!
     buffer_fft = pyfftw.interfaces.numpy_fft.fft(buffer_in)
+    
     ## Will now unroll FFT for ease of processing
-    buffer_fft = np.roll(buffer_fft, int(buffer_len/2))
-
+    buffer_fft_rolled = np.roll(buffer_fft, int(len(buffer_fft)/2))
     #Is there any power there?
-    buffer_abs = np.abs(buffer_fft*buffer_fft.conj())
+    buffer_abs = np.abs(buffer_fft_rolled*buffer_fft_rolled.conj())
     buffer_energy = np.log10(buffer_abs.sum()/buffer_len)
 
     #If below threshold return nothing
@@ -111,32 +116,36 @@ def process_buffer(buffer_in):
     ## "Bin" FFT
     ## Should probably compute moving avg here too
     buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
-
-    print(buffer_fft_smooth.shape)
-    #buffer_fft_smooth =  buffer_abs.reshape(-1, smooth_stride).mean(axis=1)
-
-    print("Smoothed buffer len:", len(buffer_fft_smooth))
+    buffer_fft_smooth = smooth(buffer_fft_smooth)
+    
+    #plt.plot(np.abs(buffer_fft_rolled))
+    #plt.show()
     #plt.plot(buffer_fft_smooth)
     #plt.show()
+    
+    print("Smoothed buffer len:", len(buffer_fft_smooth))
+    
 
     #Search for signals of interest
-    buffer_peakdata = find_channels(buffer_fft_smooth, 0.5, 1)
-
+    buffer_peakdata = find_channels(buffer_fft_smooth, 0.1, 1)
+    print(buffer_peakdata)
+    
     output_signals = []
     for peak_i in buffer_peakdata:
         #Decimate the signal in the frequency domain
-        output_signal_fft, bandwidth = fd_decimate(buffer_fft, buffer_fft_smooth, peak_i, smooth_stride, 4)
+        output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, buffer_fft_smooth, peak_i, smooth_stride, 4)
 
-        buf_len = len(buffer_fft)
+        buf_len = len(buffer_fft_rolled)
 
         if len(output_signal_fft) ==0:
             continue
-        #Pad FFT for faster computation
+        #Pad FFT for faster computation?
         #output_signal_fft = pad_fft(output_signal_fft)
         #bandwidth = ((peak_i[1]-peak_i[0])/smooth_stride) * fs
         #print(bandwidth)
         #Compute IFFT and add to list
-        output_signals.append(pyfftw.interfaces.numpy_fft.ifft(output_signal_fft))
+        td_channel = pyfftw.interfaces.numpy_fft.ifft(output_signal_fft)
+        output_signals.append(td_channel)
 
     print("We have %i signals!" % (len(output_signals)))
 
@@ -147,7 +156,7 @@ def process_buffer(buffer_in):
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
         print("Resampled FS: ", local_fs)
-        features = generate_features(local_fs, i)
+        features = generate_features(local_fs, i, plot=True)
         features.append(local_fs)
         output_features.append(features)
         output_iq.append([i, local_fs])
@@ -155,7 +164,7 @@ def process_buffer(buffer_in):
     return output_features, output_iq
 
 
-def generate_features(local_fs, iq_data, spec_size=256, roll = True):
+def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = False):
 
     ## Generate normalised spectrogram
     NFFT = math.pow(2, int(math.log(math.sqrt(len(iq_data)), 2) + 0.5)) #Arb constant... Need to analyse TODO
@@ -179,7 +188,7 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True):
 
     #TD_pwr = np.sqrt(np.square(iq_data.real) + np.square(iq_data.imag))
 
-    #plt.plot(TD_pwr)
+    #plt.plot(PSD)
     #plt.show()
 
     ## Generate CWT ##
@@ -188,13 +197,40 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True):
     #cwtmatr_imag = signal.cwt(i.imag, signal.ricker, widths)
     #plt.pcolormesh(cwtmatr_real)
     #plt.show()
-
-    #plt.pcolormesh(Zxx_rs)
-    #plt.show()
+    if plot:
+        plt.pcolormesh(Zxx_rs)
+        plt.show()
 
     output_list = [Zxx_rs, PSD]
 
     return output_list
+    
+def smooth(x,window_len=12,window='hanning'):
+    ## From http://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
+    """smooth the data using a window with variable size."""
+
+    if x.ndim != 1:
+        raise ValueError("smooth only accepts 1 dimension arrays.")
+
+    if x.size < window_len:
+        raise ValueError("Input vector needs to be bigger than window size.")
+
+    if window_len<3:
+        return x
+
+    if not window in ['flat', 'hanning', 'hamming', 'bartlett', 'blackman']:
+        raise ValueError("Window is on of 'flat', 'hanning', 'hamming', 'bartlett', 'blackman'")
+
+    s=np.r_[x[window_len-1:0:-1],x,x[-2:-window_len-1:-1]]
+    #print(len(s))
+    if window == 'flat': #moving average
+        w=np.ones(window_len,'d')
+    else:
+        w=eval('np.'+window+'(window_len)')
+
+    y=np.convolve(w/w.sum(),s,mode='valid')
+    #return y
+    return y[int(window_len/2-1):int(-window_len/2)]
 
 def normalise_spectrogram(input_array, newx, newy):
     arr_max = input_array.max()
@@ -220,11 +256,11 @@ def IQ_Balance(IQ_File):
 
 def fd_decimate(fft_data, fft_data_smoothed, peakinfo, smooth_stride, osr):
     #Calculate 3dB peak bandwidth
-    cf = peakinfo[2]*smooth_stride
+    cf = peakinfo[2]*(len(fft_data)/smooth_stride)
     bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo[2])*smooth_stride
     slicer_lower = int(cf-(bw/2)*osr)
     slicer_upper = int(cf+(bw/2)*osr)
-
+    print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
     #Slice FFT
     output_fft = fft_data[slicer_lower:slicer_upper]
     return output_fft, bw
@@ -270,7 +306,7 @@ def find_channels(data, min_height, min_distance):
     #print("Min Data Val:",min_data," Max Data Val: ", max_data)
 
     thresh = (max_data-min_data)*min_height + min_data #Calculate the threshold for channel detection. TODO Look at delta mean instead?
-    #print("Threshold Val: ",thresh)
+    print("Threshold Val: ",thresh)
     peaklist = []
 
     if data[0] < thresh: #Get initial state
