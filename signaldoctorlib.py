@@ -2,8 +2,6 @@
 Jonathan Rawlinson 2018
 """
 import numpy as np
-import pyfftw
-#import pywt
 import math
 import string
 import random
@@ -13,6 +11,10 @@ from scipy.io.wavfile import read as wavfileread
 from scipy.io import savemat
 from scipy.misc import imresize
 from numpy.fft import fftshift
+
+## FFT Config
+import pyfftw
+from scipy.fftpack import fft, ifft
 
 ## SETUP
 import os.path
@@ -27,7 +29,8 @@ smooth_stride = 1024
 fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
-iq_buffer_len = 1000 ##ms
+iq_buffer_len = 200 ##ms
+OSR = 6
 
 
 def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/'):
@@ -83,21 +86,29 @@ def process_iq_file(filename):
         ## Read IQ data into memory
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         print("IQ Len: ", len(in_frame))
-        extracted_features, extracted_iq = process_buffer(in_frame)
+        extracted_features, extracted_iq = process_buffer(in_frame, fs)
         
         for j in extracted_iq:
             save_IQ_buffer(j[0], j[1])
 
+def fft_wrap(iq_buffer, mode = 'pyfftw'):
+    if mode == 'pyfftw':
+        return pyfftw.interfaces.numpy_fft.fft(iq_buffer)
+    elif mode == 'scipy':
+        return fft(iq_buffer) #### TODO CLEAN
+        
+def ifft_wrap(iq_buffer, mode = 'pyfftw'):
+    if mode == 'pyfftw':
+        return pyfftw.interfaces.numpy_fft.ifft(iq_buffer)
+    elif mode == 'scipy':
+        return ifft(iq_buffer)
 
-def process_buffer(buffer_in):
-    #plt.psd(buffer_in)
-    #plt.show()
-    #generate_features(fs, buffer_in, roll = False, plot=True)
-    
+
+def process_buffer(buffer_in, fs=1):
     buffer_len = len(buffer_in)
     print("Processing signal. Len:", buffer_len)
     #Do FFT - get it out of the way!
-    buffer_fft = pyfftw.interfaces.numpy_fft.fft(buffer_in)
+    buffer_fft = fft_wrap(buffer_in, mode = 'pyfftw')
     
     ## Will now unroll FFT for ease of processing
     buffer_fft_rolled = np.roll(buffer_fft, int(len(buffer_fft)/2))
@@ -110,30 +121,20 @@ def process_buffer(buffer_in):
         print("Below threshold - returning nothing")
         return None
 
-    #Smooth buffer
-    #buffer_fft_smooth = buffer_abs
-
     ## "Bin" FFT
-    ## Should probably compute moving avg here too
+    ## Also smooth the buffer
     buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
     buffer_fft_smooth = smooth(buffer_fft_smooth)
-    
-    #plt.plot(np.abs(buffer_fft_rolled))
-    #plt.show()
-    #plt.plot(buffer_fft_smooth)
-    #plt.show()
-    
-    print("Smoothed buffer len:", len(buffer_fft_smooth))
-    
 
     #Search for signals of interest
     buffer_peakdata = find_channels(buffer_fft_smooth, 0.1, 1)
-    print(buffer_peakdata)
+    #print(buffer_peakdata)
     
     output_signals = []
     for peak_i in buffer_peakdata:
         #Decimate the signal in the frequency domain
-        output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, buffer_fft_smooth, peak_i, smooth_stride, 4)
+        #Please note that the OSR value is from the 3dB point of the signal - if there is a long roll off (spectrally) some of the signal mey be cut
+        output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, buffer_fft_smooth, peak_i, smooth_stride, OSR)
 
         buf_len = len(buffer_fft_rolled)
 
@@ -144,7 +145,7 @@ def process_buffer(buffer_in):
         #bandwidth = ((peak_i[1]-peak_i[0])/smooth_stride) * fs
         #print(bandwidth)
         #Compute IFFT and add to list
-        td_channel = pyfftw.interfaces.numpy_fft.ifft(output_signal_fft)
+        td_channel = ifft_wrap(output_signal_fft, mode = 'scipy')
         output_signals.append(td_channel)
 
     print("We have %i signals!" % (len(output_signals)))
@@ -156,7 +157,7 @@ def process_buffer(buffer_in):
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
         print("Resampled FS: ", local_fs)
-        features = generate_features(local_fs, i, plot=True)
+        features = generate_features(local_fs, i, plot=False)
         features.append(local_fs)
         output_features.append(features)
         output_iq.append([i, local_fs])
@@ -165,13 +166,10 @@ def process_buffer(buffer_in):
 
 
 def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = False):
-
     ## Generate normalised spectrogram
     NFFT = math.pow(2, int(math.log(math.sqrt(len(iq_data)), 2) + 0.5)) #Arb constant... Need to analyse TODO
     #print("NFFT:", NFFT)
-
     f, t, Zxx_cmplx = signal.stft(iq_data, local_fs, nperseg=NFFT, return_onesided=False)
-
     f = fftshift(f)
     #f = np.roll(f, int(len(f)/2))
     Zxx_cmplx = fftshift(Zxx_cmplx, axes=0)
@@ -205,7 +203,7 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
 
     return output_list
     
-def smooth(x,window_len=12,window='hanning'):
+def smooth(x,window_len=12,window='flat'):
     ## From http://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
     """smooth the data using a window with variable size."""
 
@@ -260,7 +258,7 @@ def fd_decimate(fft_data, fft_data_smoothed, peakinfo, smooth_stride, osr):
     bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo[2])*smooth_stride
     slicer_lower = int(cf-(bw/2)*osr)
     slicer_upper = int(cf+(bw/2)*osr)
-    print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
+    #print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
     #Slice FFT
     output_fft = fft_data[slicer_lower:slicer_upper]
     return output_fft, bw
