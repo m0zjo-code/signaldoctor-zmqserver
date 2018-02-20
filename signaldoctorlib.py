@@ -10,6 +10,7 @@ import random
 
 from scipy import signal
 from scipy.io.wavfile import read as wavfileread
+from scipy.io import savemat
 from scipy.misc import imresize
 from numpy.fft import fftshift
 
@@ -29,9 +30,14 @@ wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 500 ##ms
 
 
-def save_IQ_buffer(channel_iq, fs, output_folder = 'logs/'):
-    filename = id_generator()+".npz"
-    np.savez(output_folder+filename,channel_iq=channel_iq, fs=fs)
+def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/'):
+    if (output_format == 'npy'):
+        filename = id_generator()+".npz"
+        np.savez(output_folder+filename,channel_iq=channel_iq, fs=fs)
+    else:
+        filename = id_generator()+".mat"
+        savemat(output_folder+filename, {'channel_iq':channel_iq, 'fs':fs})
+
 
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -76,10 +82,10 @@ def process_iq_file(filename):
         print("Processing buffer %i of %i" % (i+1 , buf_no))
         ## Read IQ data into memory
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
-
+        save_IQ_buffer(in_frame, fs)
         print("IQ Len: ", len(in_frame))
         extracted_features = process_buffer(in_frame)
-        
+
 
 def process_buffer(buffer_in):
     buffer_len = len(buffer_in)
@@ -183,8 +189,8 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True):
     #plt.pcolormesh(cwtmatr_real)
     #plt.show()
 
-    plt.pcolormesh(Zxx_rs)
-    plt.show()
+    #plt.pcolormesh(Zxx_rs)
+    #plt.show()
 
     output_list = [Zxx_rs, PSD]
 
