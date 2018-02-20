@@ -1,7 +1,7 @@
 import sys
 import zmq
 import numpy as np
-import sys
+import sys, getopt
 port = "5555"
 
 import signaldoctorlib as sdl
@@ -21,26 +21,42 @@ def classify_spectrogram(input_array, model):
     print("Classify Spec")
     print("Data Shape:", input_array.shape)
     input_array = input_array.reshape((1, input_array.shape[0], input_array.shape[1], 1))
-    prediction = loaded_model.predict(input_array)
+    prediction = model.predict(input_array)
     print(prediction)
     prediction = prediction.flat[0]
 
 
 
-if __name__ == "__main__":
-    IQ_LOCAL = False
+def main(argv):
+    IQ_LOCAL = None
     IQ_FILE = None
     
     print("Running: ", sys.argv[0])
-    print("Number of arguments: ", len(sys.argv))
-
-    if  (len(sys.argv) == 3):
+    
+    try:
+        opts, args = getopt.getopt(argv,"hli:",["ifile="])
+    except getopt.GetoptError:
+        print('%s -i <inputfilepath>'%sys.argv[0])
+        sys.exit(2)
+    
+    for opt, arg in opts:
+        if opt == '-h':
+            print('%s -i <inputfilepath>'%sys.argv[0])
+            sys.exit()
+        if opt == '-l':
+            IQ_LOCAL = False
+        elif opt in ("-i", "--ifile"):
+            IQ_LOCAL = True
+            IQ_FILE = arg
+    
+    if (len(opts) == 0):
+        print("Using default parameters ->> Loading data from ZMQ PUB")
+    
+    if  IQ_LOCAL:
         print("Reading local IQ")
-        print("Input file: ", sys.argv[2])
-        IQ_LOCAL = True
-        IQ_FILE = sys.argv[2]
+        print("Input file: ", IQ_FILE)
         sdl.process_iq_file(IQ_FILE)
-        sys.exit(1)
+        sys.exit()
 
     # Socket to talk to server
     context = zmq.Context()
@@ -79,5 +95,5 @@ if __name__ == "__main__":
         #sys.exit(1)
 
 
-
-
+if __name__ == "__main__":
+    main(sys.argv[1:])
