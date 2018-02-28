@@ -29,7 +29,7 @@ smooth_stride = 1024
 fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
-iq_buffer_len = 200 ##ms
+iq_buffer_len = 500 ##ms
 OSR = 6
 
 
@@ -87,7 +87,7 @@ def process_iq_file(filename):
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         print("IQ Len: ", len(in_frame))
         extracted_features, extracted_iq = process_buffer(in_frame, fs)
-        
+
         for j in extracted_iq:
             save_IQ_buffer(j[0], j[1])
 
@@ -96,7 +96,7 @@ def fft_wrap(iq_buffer, mode = 'pyfftw'):
         return pyfftw.interfaces.numpy_fft.fft(iq_buffer)
     elif mode == 'scipy':
         return fft(iq_buffer) #### TODO CLEAN
-        
+
 def ifft_wrap(iq_buffer, mode = 'pyfftw'):
     if mode == 'pyfftw':
         return pyfftw.interfaces.numpy_fft.ifft(iq_buffer)
@@ -109,7 +109,7 @@ def process_buffer(buffer_in, fs=1):
     print("Processing signal. Len:", buffer_len)
     #Do FFT - get it out of the way!
     buffer_fft = fft_wrap(buffer_in, mode = 'pyfftw')
-    
+
     ## Will now unroll FFT for ease of processing
     buffer_fft_rolled = np.roll(buffer_fft, int(len(buffer_fft)/2))
     #Is there any power there?
@@ -129,7 +129,7 @@ def process_buffer(buffer_in, fs=1):
     #Search for signals of interest
     buffer_peakdata = find_channels(buffer_fft_smooth, 0.1, 1)
     #print(buffer_peakdata)
-    
+
     output_signals = []
     for peak_i in buffer_peakdata:
         #Decimate the signal in the frequency domain
@@ -202,7 +202,7 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
     output_list = [Zxx_rs, PSD]
 
     return output_list
-    
+
 def smooth(x,window_len=12,window='flat'):
     ## From http://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
     """smooth the data using a window with variable size."""

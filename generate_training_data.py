@@ -28,7 +28,7 @@ def feature_gen(file_list, spec_size):
     return [output_list_spec, output_list_psd]
 
 
-input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V3/iq"
+input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V4/iq"
 
 
 for sig in os.listdir(input_folder):
@@ -40,9 +40,9 @@ for sig in os.listdir(input_folder):
             #print(fileZ)
             if fileZ.endswith(".npz"):
                 filename_list.append(os.path.join(sig_input_folder, fileZ))
-    
+
         data_list = feature_gen(filename_list, 256)
-        
+
         spec_aray = np.asarray(data_list[0])
         psd_aray = np.asarray(data_list[1])
         np.save('specdata/' + sig + '.npy', spec_aray)
@@ -54,7 +54,7 @@ for sig in os.listdir(input_folder):
 
 ## $$$$$$$ SPECTROGRAM $$$$$$$$
 
-train_testsplit = 0.6 ##
+train_testsplit = 0.8##
 
 input_folder = "specdata"
 
@@ -78,11 +78,11 @@ for filename in filename_list:
     for i in training_tmp:
         X_train.append(i)
         y_train.append(index)
-    
+
     for i in test_tmp:
         X_test.append(i)
         y_test.append(index)
-    
+
     line = filename + ",%s"%(index)
     index_data.append(line)
     print(line)
@@ -102,7 +102,7 @@ y_test = np.asarray(y_test)
 
 X_test = np.asarray(X_test)
 X_test = X_test.reshape((X_test.shape[0], X_test.shape[1], X_test.shape[2], 1))
-    
+
 np.savez("SpecTrainingData.npz", X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
 
 
@@ -133,11 +133,11 @@ for filename in filename_list:
     for i in training_tmp:
         X_train.append(i)
         y_train.append(index)
-    
+
     for i in test_tmp:
         X_test.append(i)
         y_test.append(index)
-        
+
     line = filename + ",%s"%(index)
     index_data.append(line)
     print(line)
@@ -158,5 +158,5 @@ y_test = np.asarray(y_test)
 
 X_test = np.asarray(X_test)
 X_test = X_test.reshape((X_test.shape[0], X_test.shape[1]))
-    
+
 np.savez("PsdTrainingData.npz", X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test)
