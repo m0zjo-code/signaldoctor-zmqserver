@@ -12,7 +12,7 @@ from keras.optimizers import *
 
 batch_size = 64
 #num_classes = 10
-epochs = 100
+epochs = 10000
 
 # the data, shuffled and split between train and test sets
 
@@ -44,6 +44,9 @@ model.add(Dense(2**5, activation='relu'))
 model.add(Dropout(0.2))
 model.add(Dense(num_classes, activation='softmax'))
 
+keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.05, patience=5, verbose=0, mode='auto')
+
+
 model.summary()
 
 model.compile(loss='categorical_crossentropy',
@@ -58,3 +61,12 @@ history = model.fit(x_train, y_train,
 score = model.evaluate(x_test, y_test, verbose=0)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
+
+
+# serialize model to JSON
+model_json = model.to_json()
+with open("psdmodel.nn", "w") as json_file:
+    json_file.write(model_json)
+# serialize weights to HDF5
+model.save_weights("psdmodel.h5")
+print("Saved model to disk")

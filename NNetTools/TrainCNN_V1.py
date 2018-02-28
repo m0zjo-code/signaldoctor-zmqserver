@@ -9,7 +9,7 @@ from keras.callbacks import TensorBoard
 from time import time
 
 batch_size = 16 # in each iteration, we consider 32 training examples at once
-num_epochs = 20 # we iterate 20 times over the entire training set
+num_epochs = 100 # we iterate 20 times over the entire training set
 kernel_size = 3 # we will use 3x3 kernels throughout
 pool_size = 2 # we will use 2x2 pooling throughout
 conv_depth_1 = 32 # we will initially have 32 kernels per conv. layer...
@@ -27,11 +27,11 @@ X_test = input_data['X_test']
 y_test = input_data['y_test']
 
 
-num_train, height, width, depth = X_train.shape # there are 50000 training examples in CIFAR-10 
+num_train, height, width, depth = X_train.shape # there are 50000 training examples in CIFAR-10
 num_test = X_test.shape[0] # there are 10000 test examples in CIFAR-10
 num_classes = np.unique(y_train).shape[0] # there are 10 image classes
 
-X_train = X_train.astype('float32') 
+X_train = X_train.astype('float32')
 X_test = X_test.astype('float32')
 X_train /= np.max(X_train) # Normalise data to [0, 1] range
 X_test /= np.max(X_test) # Normalise data to [0, 1] range
@@ -72,9 +72,9 @@ model.evaluate(X_test, Y_test, verbose=1)  # Evaluate the trained model on the t
 
 # serialize model to JSON
 model_json = model.to_json()
-with open("model.nn", "w") as json_file:
+with open("specmodel.nn", "w") as json_file:
     json_file.write(model_json)
 # serialize weights to HDF5
-model.save_weights("model.h5")
+model.save_weights("specmodel.h5")
 print("Saved model to disk")
- 
+
