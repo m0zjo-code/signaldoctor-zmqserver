@@ -28,7 +28,7 @@ def feature_gen(file_list, spec_size):
     return [output_list_spec, output_list_psd]
 
 
-input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V4/iq"
+input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V5"
 
 
 for sig in os.listdir(input_folder):
@@ -143,10 +143,10 @@ for filename in filename_list:
     print(line)
     index = index + 1
 
-thefile = open('psd_data_index.csv', 'w')
-for i in index_data:
-    thefile.write("%s\n" % i)
-thefile.close()
+#thefile = open('psd_data_index.csv', 'w')
+#for i in index_data:
+    #thefile.write("%s\n" % i)
+#thefile.close()
 
 
 y_train = np.asarray(y_train)

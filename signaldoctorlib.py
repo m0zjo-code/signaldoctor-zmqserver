@@ -5,12 +5,17 @@ import numpy as np
 import math
 import string
 import random
+import csv
 
 from scipy import signal
 from scipy.io.wavfile import read as wavfileread
 from scipy.io import savemat
 from scipy.misc import imresize
 from numpy.fft import fftshift
+
+from keras.models import model_from_json
+import tensorflow as tf
+
 
 ## FFT Config
 import pyfftw
@@ -25,13 +30,44 @@ import matplotlib.pyplot as plt
 
 ## TODO ADD TO CFG FILE
 energy_threshold = -5
+peak_threshold = 0.2
 smooth_stride = 1024
 fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 500 ##ms
-OSR = 6
+OSR = 2
+MODEL_NAME = ["specmodel", "psdmodel"]
 
+
+## https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
+def npmax(l):
+    max_idx = int(np.argmax(l))
+    max_val = l[max_idx]
+    return (max_idx, max_val)
+
+
+def get_spec_model(modelname):
+    ## LOAD SPECTROGRAM NETWORK ##
+    loaded_model = []
+    for i in MODEL_NAME:
+        json_file = open('%s.nn'%(i), 'r')
+        loaded_model_json = json_file.read()
+        json_file.close()
+        loaded_model.append(model_from_json(loaded_model_json))
+        # load weights into new model
+        loaded_model[-1].load_weights("%s.h5"%(i))
+        print("Loaded model from disk")
+
+
+    ## https://stackoverflow.com/questions/6740918/creating-a-dictionary-from-a-csv-file
+    with open('spec_data_index.csv', mode='r') as ifile:
+        reader = csv.reader(ifile)
+        d = {}
+        for row in reader:
+            k, v = row
+            d[int(v)] = k
+    return loaded_model, d
 
 def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/'):
     if (output_format == 'npy'):
@@ -71,7 +107,10 @@ def power_bit_length(x):
     x = int(x)
     return 2**((x-1).bit_length()-1)
 
-def process_iq_file(filename):
+def process_iq_file(filename, LOG_IQ):
+
+    loaded_model, index_dict = get_spec_model(MODEL_NAME)
+
     fs, file_len, iq_file = load_IQ_file(filename)
     print("Len file: ", file_len )
 
@@ -80,16 +119,70 @@ def process_iq_file(filename):
     length = power_bit_length(length)
 
     buf_no = int(np.floor(file_len/(length)))
+
     print("Length of buffer: ", length/fs, "s")
     for i in range(0, buf_no):
         print("Processing buffer %i of %i" % (i+1 , buf_no))
         ## Read IQ data into memory
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         print("IQ Len: ", len(in_frame))
-        extracted_features, extracted_iq = process_buffer(in_frame, fs)
+        #extracted_features, extracted_iq = process_buffer(in_frame, fs)
 
-        for j in extracted_iq:
-            save_IQ_buffer(j[0], j[1])
+        #for j in extracted_iq:
+            #save_IQ_buffer(j[0], j[1])
+        classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ, loaded_model=loaded_model, loaded_index=index_dict)
+
+
+def classify_buffer(buffer_data, fs=1, LOG_IQ = True, loaded_model = None, loaded_index=None):
+    extracted_features, extracted_iq = process_buffer(buffer_data, fs)
+
+    # We now have the features and iq data
+    if LOG_IQ:
+        print("Logging.....")
+        for iq_channel in extracted_iq:
+            save_IQ_buffer(iq_channel[0], iq_channel[1])
+
+    features_array = np.asarray(extracted_features)
+    #plt.pcolormesh(extracted_features[0][0])
+    #plt.show()
+    classify_spectrogram(features_array, loaded_model, loaded_index)
+
+    #sys.exit(1)
+
+def classify_spectrogram(input_array, model, index):
+    #input_array = input_array[0]
+    print("LEN:", len(input_array))
+    for i in range(0, len(input_array)):
+        tmpspec = input_array[i][0]
+        tmppsd = input_array[i][1]
+
+        plt.pcolormesh(tmpspec)
+        plt.show()
+
+
+        #plt.plot(tmppsd)
+        #plt.show()
+
+        #tmpspec = tmpspec.reshape((1, tmpspec.shape[0], tmpspec.shape[1], 1))
+        tmpspec_z = np.zeros((1, tmpspec.shape[0], tmpspec.shape[1], 3))
+        for j in range(0, 3):
+            tmpspec_z[0,:,:,j] = tmpspec
+        #input_tensor = tf.image.grayscale_to_rgb(tmpspec)
+        #print(type(input_tensor))
+        prediction_spec = model[0].predict(tmpspec_z)
+
+        #print(prediction)
+        idx_spec = npmax(prediction_spec[0])[0]
+        print("Classified signal (spec) -->>", index[idx_spec])
+
+        tmppsd = tmppsd.reshape((1, tmppsd.shape[0]))
+        prediction_psd= model[1].predict(tmppsd)
+
+        idx_psd = npmax(prediction_psd[0])[0]
+        print("Classified signal (psd) -->>", index[idx_psd])
+        #prediction = prediction.flat[0]
+
+
 
 def fft_wrap(iq_buffer, mode = 'pyfftw'):
     if mode == 'pyfftw':
@@ -124,10 +217,14 @@ def process_buffer(buffer_in, fs=1):
     ## "Bin" FFT
     ## Also smooth the buffer
     buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
-    buffer_fft_smooth = smooth(buffer_fft_smooth)
+    buffer_fft_smooth = smooth(buffer_fft_smooth, window_len=16)
+
+
+    #plt.plot(buffer_fft_smooth)
+    #plt.show()
 
     #Search for signals of interest
-    buffer_peakdata = find_channels(buffer_fft_smooth, 0.1, 1)
+    buffer_peakdata = find_channels(buffer_fft_smooth, peak_threshold, 1)
     #print(buffer_peakdata)
 
     output_signals = []
@@ -156,7 +253,7 @@ def process_buffer(buffer_in, fs=1):
     output_iq = []
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
-        print("Resampled FS: ", local_fs)
+        #print("Resampled FS: ", local_fs)
         features = generate_features(local_fs, i, plot=False)
         features.append(local_fs)
         output_features.append(features)
@@ -304,7 +401,7 @@ def find_channels(data, min_height, min_distance):
     #print("Min Data Val:",min_data," Max Data Val: ", max_data)
 
     thresh = (max_data-min_data)*min_height + min_data #Calculate the threshold for channel detection. TODO Look at delta mean instead?
-    print("Threshold Val: ",thresh)
+    #print("Threshold Val: ",thresh)
     peaklist = []
 
     if data[0] < thresh: #Get initial state
