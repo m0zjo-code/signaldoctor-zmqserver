@@ -162,19 +162,22 @@ def classify_spectrogram(input_array, model, index):
 
         #plt.plot(tmppsd)
         #plt.show()
-
+        
         #tmpspec = tmpspec.reshape((1, tmpspec.shape[0], tmpspec.shape[1], 1))
         tmpspec_z = np.zeros((1, tmpspec.shape[0], tmpspec.shape[1], 3))
         for j in range(0, 3):
             tmpspec_z[0,:,:,j] = tmpspec
         #input_tensor = tf.image.grayscale_to_rgb(tmpspec)
         #print(type(input_tensor))
+        
+        # NEED TO NORMALISE! TODO
         prediction_spec = model[0].predict(tmpspec_z)
 
         #print(prediction)
         idx_spec = npmax(prediction_spec[0])[0]
         print("Classified signal (spec) -->>", index[idx_spec])
-
+        
+        # NEED TO NORMALISE! TODO
         tmppsd = tmppsd.reshape((1, tmppsd.shape[0]))
         prediction_psd= model[1].predict(tmppsd)
 

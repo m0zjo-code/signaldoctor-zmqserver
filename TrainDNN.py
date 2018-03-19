@@ -10,9 +10,9 @@ from keras.models import Sequential
 from keras.layers import Dense, Dropout
 from keras.optimizers import *
 
-batch_size = 64
+batch_size = 128
 #num_classes = 10
-epochs = 50
+epochs = 500
 
 # the data, shuffled and split between train and test sets
 
@@ -25,23 +25,28 @@ y_test = input_data['y_test']
 num_classes = len(np.unique(y_train))
 print("No. Classes:", num_classes)
 
+x_train = x_train.astype('float32')
+x_test = x_test.astype('float32')
+x_train /= np.max(x_train) # Normalise data to [0, 1] range
+x_test /= np.max(x_test) # Normalise data to [0, 1] range
+
 # convert class vectors to binary class matrices
 y_train = keras.utils.to_categorical(y_train, num_classes)
 y_test = keras.utils.to_categorical(y_test, num_classes)
 
 model = Sequential()
-model.add(Dense(2**12, activation='tanh', input_shape=(256,)))
+model.add(Dense(2**3, activation='tanh', input_shape=(256,)))
 model.add(Dropout(0.2))
-model.add(Dense(2**7, activation='sigmoid'))
+model.add(Dense(2**4, activation='tanh'))
 model.add(Dropout(0.2))
-model.add(Dense(2**7, activation='relu'))
-model.add(Dropout(0.4))
-model.add(Dense(2**7, activation='relu'))
-model.add(Dropout(0.2))
-model.add(Dense(2**6, activation='relu'))
-model.add(Dropout(0.2))
-model.add(Dense(2**5, activation='relu'))
-model.add(Dropout(0.2))
+model.add(Dense(2**3, activation='tanh'))
+#model.add(Dense(2**7, activation='tanh'))
+#model.add(Dense(2**7, activation='tanh'))
+#model.add(Dropout(0.2))
+#model.add(Dense(2**6, activation='tanh'))
+#model.add(Dropout(0.2))
+#model.add(Dense(2**5, activation='tanh'))
+#model.add(Dropout(0.2))
 model.add(Dense(num_classes, activation='softmax'))
 
 keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.05, patience=5, verbose=0, mode='auto')
@@ -50,15 +55,16 @@ keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.05, patience=5, ve
 model.summary()
 
 model.compile(loss='categorical_crossentropy',
-              optimizer=Adamax(),
+              optimizer=RMSprop(),
               metrics=['accuracy'])
 
 history = model.fit(x_train, y_train,
                     batch_size=batch_size,
                     epochs=epochs,
-                    verbose=1,
+                    verbose=2,
+                    shuffle = True,
                     validation_data=(x_test, y_test))
-score = model.evaluate(x_test, y_test, verbose=0)
+score = model.evaluate(x_test, y_test, verbose=2)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
 
@@ -70,3 +76,4 @@ with open("psdmodel.nn", "w") as json_file:
 # serialize weights to HDF5
 model.save_weights("psdmodel.h5")
 print("Saved model to disk")
+print("Training Complete")
