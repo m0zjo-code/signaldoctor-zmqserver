@@ -12,7 +12,7 @@ from keras.optimizers import *
 
 batch_size = 128
 #num_classes = 10
-epochs = 500
+epochs = 1000
 
 # the data, shuffled and split between train and test sets
 

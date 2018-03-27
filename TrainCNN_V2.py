@@ -1,3 +1,13 @@
+import os
+
+USE_GPU = False
+
+## Set up Tensorflow to use CPU or GPU
+# Disable Tensorflow GPU computation (seems to break when loading inception)
+if not USE_GPU:
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 from keras.datasets import cifar10 # subroutines for fetching the CIFAR-10 dataset
 from keras.models import Model # basic class for specifying and training a neural network
 from keras.layers import Input, Convolution2D, MaxPooling2D, Dense, Dropout, Flatten
@@ -11,15 +21,15 @@ import numpy as np
 from keras.callbacks import TensorBoard
 from time import time
 
-batch_size = 50 # in each iteration, we consider 32 training examples at once
-num_epochs = 100 # we iterate 20 times over the entire training set
+batch_size = 16 # in each iteration, we consider 32 training examples at once
+num_epochs = 10 # we iterate 20 times over the entire training set
 kernel_size = 3 # we will use 3x3 kernels throughout
 pool_size = 2 # we will use 2x2 pooling throughout
 conv_depth_1 = 32 # we will initially have 32 kernels per conv. layer...
 conv_depth_2 = 64 # ...switching to 64 after the first pooling layer
 drop_prob_1 = 0.25 # dropout after pooling with probability 0.25
 drop_prob_2 = 0.25 # dropout in the FC layer with probability 0.5
-hidden_size_1 = 256 # the FC layer will have 512 neurons
+hidden_size_1 = 512# the FC layer will have 512 neurons
 hidden_size_2 = 32
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
@@ -85,6 +95,8 @@ print(X_test.shape)
 
 model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet', input_shape = (height, width, 3), classes=num_classes)
 
+#model = applications.mobilenet.MobileNet(include_top=False, weights='imagenet', input_shape = (height, width, 3), classes=num_classes)
+
 for layer in model.layers[:19]:
     layer.trainable = False
 
@@ -102,12 +114,12 @@ model_final.summary()
 
 ########################
 model_final.compile(loss='categorical_crossentropy', # using the cross-entropy loss function
-              optimizer=Adamax(), # using the RMS optimiser
+              optimizer=RMSprop(), # using the RMS optimiser
               metrics=['accuracy']) # reporting the accuracy
 
 model_final.fit(X_train, Y_train,                # Train the model using the training set...
           batch_size=batch_size, epochs=num_epochs,
-          verbose=1, validation_split=0.2) # ...holding out 20% of the data for validation
+          verbose=1, validation_split=0.0) # ...holding out 15% of the data for validation
 
 
 scores = model_final.evaluate(X_test, Y_test, verbose=1)  # Evaluate the trained model on the test set!
