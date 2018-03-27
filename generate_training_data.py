@@ -29,7 +29,7 @@ def feature_gen(file_list, spec_size):
 
 
 input_folder = "/mnt/datastore/FYP/training_sets/TF_Train_V5"
-
+input_folder = "/home/jonathan/TF_Train_V5"
 
 for sig in os.listdir(input_folder):
     sig_input_folder = input_folder + "/" + sig
@@ -54,7 +54,7 @@ for sig in os.listdir(input_folder):
 
 ## $$$$$$$ SPECTROGRAM $$$$$$$$
 
-train_testsplit = 0.8##
+train_testsplit = 0.8
 
 input_folder = "specdata"
 
@@ -73,7 +73,7 @@ index_data = []
 for filename in filename_list:
     x = np.load(filename)
     x_len = len(x)
-    np.random.shuffle(x)
+    #np.random.shuffle(x)
     training_tmp, test_tmp = x[:int(x_len*train_testsplit),:], x[int(x_len*train_testsplit):,:]
     for i in training_tmp:
         X_train.append(i)
@@ -109,7 +109,7 @@ np.savez("SpecTrainingData.npz", X_train=X_train, y_train=y_train, X_test=X_test
 
 ## $$$$$$$ PSD $$$$$$$$
 
-train_testsplit = 0.6 ##
+train_testsplit = 0.8 ##
 
 input_folder = "psddata"
 
@@ -128,7 +128,7 @@ index_data = []
 for filename in filename_list:
     x = np.load(filename)
     x_len = len(x)
-    np.random.shuffle(x)
+    #np.random.shuffle(x)
     training_tmp, test_tmp = x[:int(x_len*train_testsplit),:], x[int(x_len*train_testsplit):,:]
     for i in training_tmp:
         X_train.append(i)
