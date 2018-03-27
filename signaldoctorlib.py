@@ -30,13 +30,13 @@ import matplotlib.pyplot as plt
 
 ## TODO ADD TO CFG FILE
 energy_threshold = -5
-peak_threshold = 0.2
+peak_threshold = 0.5
 smooth_stride = 1024
 fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
-iq_buffer_len = 500 ##ms
-OSR = 2
+iq_buffer_len = 100 ##ms
+OSR = 1
 MODEL_NAME = ["specmodel", "psdmodel"]
 
 
@@ -143,8 +143,12 @@ def classify_buffer(buffer_data, fs=1, LOG_IQ = True, loaded_model = None, loade
             save_IQ_buffer(iq_channel[0], iq_channel[1])
 
     features_array = np.asarray(extracted_features)
-    #plt.pcolormesh(extracted_features[0][0])
-    #plt.show()
+    
+    #for i in extracted_features:
+        #plt.pcolormesh(i[0])
+        #plt.show()
+    
+    ## TODO this will be moved to a seperate server enventually... 
     classify_spectrogram(features_array, loaded_model, loaded_index)
 
     #sys.exit(1)
@@ -156,8 +160,8 @@ def classify_spectrogram(input_array, model, index):
         tmpspec = input_array[i][0]
         tmppsd = input_array[i][1]
 
-        plt.pcolormesh(tmpspec)
-        plt.show()
+        #plt.pcolormesh(tmpspec)
+        #plt.show()
 
 
         #plt.plot(tmppsd)
@@ -170,14 +174,16 @@ def classify_spectrogram(input_array, model, index):
         #input_tensor = tf.image.grayscale_to_rgb(tmpspec)
         #print(type(input_tensor))
         
-        # NEED TO NORMALISE! TODO
+        tmpspec_z = tmpspec_z.astype('float32')
+        tmpspec_z /= np.max(tmpspec_z)
         prediction_spec = model[0].predict(tmpspec_z)
 
         #print(prediction)
         idx_spec = npmax(prediction_spec[0])[0]
         print("Classified signal (spec) -->>", index[idx_spec])
         
-        # NEED TO NORMALISE! TODO
+        tmppsd = tmppsd.astype('float32')
+        tmppsd /= np.max(tmppsd) 
         tmppsd = tmppsd.reshape((1, tmppsd.shape[0]))
         prediction_psd= model[1].predict(tmppsd)
 
@@ -257,7 +263,7 @@ def process_buffer(buffer_in, fs=1):
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
         #print("Resampled FS: ", local_fs)
-        features = generate_features(local_fs, i, plot=False)
+        features = generate_features(local_fs, i, plot=True)
         features.append(local_fs)
         output_features.append(features)
         output_iq.append([i, local_fs])
@@ -276,13 +282,17 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
     if roll:
         Zxx_cmplx = np.roll(Zxx_cmplx, int(len(f)/2), axis=0)
 
-    Zxx_abs = np.abs(Zxx_cmplx)
-
-    Zxx_rs = normalise_spectrogram(Zxx_abs, spec_size, spec_size)
+    Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
+    Zxx_phi = np.abs(np.angle(Zxx_cmplx))
+    Zxx_cec = np.corrcoef(Zxx_mag, Zxx_phi)
+    Zxx_mag_rs = normalise_spectrogram(Zxx_mag, spec_size, spec_size)
+    Zxx_phi_rs = normalise_spectrogram(Zxx_phi, spec_size, spec_size)
+    Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size, spec_size)
+    
 
     # We have a array suitable for NNet
     ## Generate spectral info by taking mean of spectrogram ##
-    PSD = np.mean(Zxx_rs, axis=1)
+    PSD = np.mean(Zxx_mag_rs, axis=1)
 
     #TD_pwr = np.sqrt(np.square(iq_data.real) + np.square(iq_data.imag))
 
@@ -296,10 +306,17 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
     #plt.pcolormesh(cwtmatr_real)
     #plt.show()
     if plot:
-        plt.pcolormesh(Zxx_rs)
+        plt.subplot(2, 2, 1)
+        plt.pcolormesh(Zxx_mag_rs)
+        plt.subplot(2, 2, 2)
+        plt.pcolormesh(Zxx_phi_rs)
+        plt.subplot(2, 2, 3)
+        plt.plot(PSD)
+        plt.subplot(2, 2, 4)
+        plt.pcolormesh(Zxx_cec_rs)
         plt.show()
 
-    output_list = [Zxx_rs, PSD]
+    output_list = [Zxx_mag_rs, PSD]
 
     return output_list
 
