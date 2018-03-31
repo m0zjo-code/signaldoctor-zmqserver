@@ -30,7 +30,7 @@ import matplotlib.pyplot as plt
 
 ## TODO ADD TO CFG FILE
 energy_threshold = -5
-peak_threshold = 0.5
+peak_threshold = 0.2
 smooth_stride = 1024
 fs = 2**21
 MaxFFTN = 22
@@ -284,7 +284,7 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
 
     Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
     Zxx_phi = np.abs(np.angle(Zxx_cmplx))
-    Zxx_cec = np.corrcoef(Zxx_mag, Zxx_phi)
+    Zxx_cec = np.abs(np.corrcoef(Zxx_mag, Zxx_phi))
     Zxx_mag_rs = normalise_spectrogram(Zxx_mag, spec_size, spec_size)
     Zxx_phi_rs = normalise_spectrogram(Zxx_phi, spec_size, spec_size)
     Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size, spec_size)
