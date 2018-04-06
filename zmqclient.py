@@ -2,7 +2,8 @@ import sys
 import zmq
 import numpy as np
 import sys, getopt
-port = "5555"
+port = 5555
+pubport = 5556
 
 import signaldoctorlib as sdl
 
@@ -19,6 +20,10 @@ def main(argv):
     IQ_FILE = None
     
     print("Running: ", sys.argv[0])
+    
+    pubcontext = zmq.Context()
+    pubsocket = pubcontext.socket(zmq.PUB)
+    pubsocket.bind('tcp://127.0.0.1:%i' % pubport)
     
     try:
         opts, args = getopt.getopt(argv,"hli:",["ifile="])
@@ -42,14 +47,14 @@ def main(argv):
     if  IQ_LOCAL:
         print("Reading local IQ")
         print("Input file: ", IQ_FILE)
-        sdl.process_iq_file(IQ_FILE,LOG_IQ)
+        sdl.process_iq_file(IQ_FILE,LOG_IQ, pubsocket=pubsocket)
         sys.exit()
 
     # Socket to talk to server
     context = zmq.Context()
     socket = context.socket(zmq.SUB)
     print("Collecting updates from IQ server...")
-    socket.connect ("tcp://127.0.0.1:5555")
+    socket.connect ("tcp://127.0.0.1:%i" % port)
 
     socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
@@ -58,7 +63,7 @@ def main(argv):
     while True:
         string = socket.recv()
         buffer_data = np.fromstring(string, dtype = 'complex64')
-        sdl.classify_buffer(buffer_data, fs=1, LOG_IQ=LOG_IQ, loaded_model=loaded_model, loaded_index=index_dict)
+        sdl.classify_buffer(buffer_data, fs=1, LOG_IQ=LOG_IQ, pubsocket=pubsocket)
 
 
 if __name__ == "__main__":

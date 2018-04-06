@@ -107,9 +107,9 @@ def power_bit_length(x):
     x = int(x)
     return 2**((x-1).bit_length()-1)
 
-def process_iq_file(filename, LOG_IQ):
+def process_iq_file(filename, LOG_IQ, pubsocket=None):
 
-    loaded_model, index_dict = get_spec_model(MODEL_NAME)
+    #loaded_model, index_dict = get_spec_model(MODEL_NAME)
 
     fs, file_len, iq_file = load_IQ_file(filename)
     print("Len file: ", file_len )
@@ -130,10 +130,10 @@ def process_iq_file(filename, LOG_IQ):
 
         #for j in extracted_iq:
             #save_IQ_buffer(j[0], j[1])
-        classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ, loaded_model=loaded_model, loaded_index=index_dict)
+        classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket)
 
 
-def classify_buffer(buffer_data, fs=1, LOG_IQ = True, loaded_model = None, loaded_index=None):
+def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None):
     extracted_features, extracted_iq = process_buffer(buffer_data, fs)
 
     # We now have the features and iq data
@@ -141,17 +141,32 @@ def classify_buffer(buffer_data, fs=1, LOG_IQ = True, loaded_model = None, loade
         print("Logging.....")
         for iq_channel in extracted_iq:
             save_IQ_buffer(iq_channel[0], iq_channel[1])
-
-    features_array = np.asarray(extracted_features)
+    
+    
+    #features_array = np.asarray(extracted_features)
+    
+    send_features(extracted_features, pubsocket)
+    
+    ## Return to main
     
     #for i in extracted_features:
         #plt.pcolormesh(i[0])
         #plt.show()
     
     ## TODO this will be moved to a seperate server enventually... 
-    classify_spectrogram(features_array, loaded_model, loaded_index)
+    
+    ###classify_spectrogram(features_array, loaded_model, loaded_index)
 
     #sys.exit(1)
+
+def send_features(extracted_features, pubsocket):
+    print(pubsocket)
+    for data in extracted_features:
+        data = np.asarray(data)
+        pubsocket.send_pyobj(data)
+        #print(data)
+    
+
 
 def classify_spectrogram(input_array, model, index):
     #input_array = input_array[0]
