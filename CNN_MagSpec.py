@@ -21,7 +21,7 @@ import numpy as np
 from keras.callbacks import TensorBoard
 from time import time
 
-batch_size = 16 # in each iteration, we consider 32 training examples at once
+batch_size = 64 # in each iteration, we consider 32 training examples at once
 num_epochs = 10 # we iterate 20 times over the entire training set
 kernel_size = 3 # we will use 3x3 kernels throughout
 pool_size = 2 # we will use 2x2 pooling throughout
@@ -34,7 +34,7 @@ hidden_size_2 = 32
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
 
-input_data = np.load("SpecTrainingData.npz")
+input_data = np.load("nnetsetup/SpecTrainingData.npz")
 X_train = input_data['X_train']
 y_train = input_data['y_train']
 X_test = input_data['X_test']

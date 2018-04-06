@@ -10,7 +10,7 @@ import csv
 from scipy import signal
 from scipy.io.wavfile import read as wavfileread
 from scipy.io import savemat
-from scipy.misc import imresize
+from scipy.misc import imresize, imsave
 from numpy.fft import fftshift
 
 from keras.models import model_from_json
@@ -36,7 +36,7 @@ fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 100 ##ms
-OSR = 1.5
+OSR = 1
 MODEL_NAME = ["specmodel", "psdmodel"]
 plot = False
 
@@ -79,16 +79,23 @@ def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/
     Write IQ data into npy file
     The MATLAB *.mat file can also be used
     """
+    filename = id_generator()
     if (output_format == 'npy'):
-        filename = id_generator()+".npz"
-        np.savez(output_folder+filename,channel_iq=channel_iq, fs=fs)
+        np.savez(output_folder+filename+".npz",channel_iq=channel_iq, fs=fs)
     else:
-        filename = id_generator()+".mat"
-        savemat(output_folder+filename, {'channel_iq':channel_iq, 'fs':fs})
+        savemat(output_folder+filename+".mat", {'channel_iq':channel_iq, 'fs':fs})
+    
+    f, t, Zxx_cmplx = signal.stft(channel_iq, 1, nperseg=256, return_onesided=False)
+    Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
+    imsave(output_folder+filename+".png", Zxx_mag)
+
 
 
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
+    """
+    Generate random string
+    """
     return ''.join(random.choice(chars) for _ in range(size))
 
 def load_IQ_file(input_filename):
@@ -135,10 +142,6 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None):
         ## Read IQ data into memory
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         print("IQ Len: ", len(in_frame))
-        #extracted_features, extracted_iq = process_buffer(in_frame, fs)
-
-        #for j in extracted_iq:
-            #save_IQ_buffer(j[0], j[1])
         classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket)
 
 
@@ -251,6 +254,7 @@ def process_buffer(buffer_in, fs=1):
         #Decimate the signal in the frequency domain
         #Please note that the OSR value is from the 3dB point of the signal - if there is a long roll off (spectrally) some of the signal mey be cut
         output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, buffer_fft_smooth, peak_i, smooth_stride, OSR)
+        print("Bandwidth--->>>", bandwidth)
         buf_len = len(buffer_fft_rolled)
         if len(output_signal_fft) ==0:
             continue

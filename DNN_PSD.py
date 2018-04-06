@@ -16,7 +16,7 @@ epochs = 1000
 
 # the data, shuffled and split between train and test sets
 
-input_data = np.load("PsdTrainingData.npz")
+input_data = np.load("nnetsetup/PsdTrainingData.npz")
 x_train = input_data['X_train']
 y_train = input_data['y_train']
 x_test = input_data['X_test']
@@ -37,7 +37,7 @@ y_test = keras.utils.to_categorical(y_test, num_classes)
 model = Sequential()
 model.add(Dense(2**3, activation='tanh', input_shape=(256,)))
 model.add(Dropout(0.2))
-model.add(Dense(2**4, activation='tanh'))
+model.add(Dense(2**3, activation='tanh'))
 model.add(Dropout(0.2))
 model.add(Dense(2**3, activation='tanh'))
 #model.add(Dense(2**7, activation='tanh'))
@@ -49,7 +49,8 @@ model.add(Dense(2**3, activation='tanh'))
 #model.add(Dropout(0.2))
 model.add(Dense(num_classes, activation='softmax'))
 
-keras.callbacks.EarlyStopping(monitor='val_loss', min_delta=0.05, patience=5, verbose=0, mode='auto')
+earlystop = keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.0001, patience=50, verbose=1, mode='auto')
+callbacks_list = [earlystop]
 
 
 model.summary()
@@ -63,6 +64,7 @@ history = model.fit(x_train, y_train,
                     epochs=epochs,
                     verbose=2,
                     shuffle = True,
+                    callbacks=callbacks_list,
                     validation_data=(x_test, y_test))
 score = model.evaluate(x_test, y_test, verbose=2)
 print('Test loss:', score[0])
