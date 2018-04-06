@@ -36,19 +36,26 @@ fs = 2**21
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 100 ##ms
-OSR = 1
+OSR = 1.5
 MODEL_NAME = ["specmodel", "psdmodel"]
+plot = False
 
 
-## https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
+## Help from -->> https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
 def npmax(l):
+    """ 
+    Find Max value and index of wall
+    """
     max_idx = int(np.argmax(l))
     max_val = l[max_idx]
     return (max_idx, max_val)
 
 
 def get_spec_model(modelname):
-    ## LOAD SPECTROGRAM NETWORK ##
+    """ 
+    Load models from file 
+    Returns model and indexes 
+    """
     loaded_model = []
     for i in MODEL_NAME:
         json_file = open('%s.nn'%(i), 'r')
@@ -58,8 +65,6 @@ def get_spec_model(modelname):
         # load weights into new model
         loaded_model[-1].load_weights("%s.h5"%(i))
         print("Loaded model from disk")
-
-
     ## https://stackoverflow.com/questions/6740918/creating-a-dictionary-from-a-csv-file
     with open('spec_data_index.csv', mode='r') as ifile:
         reader = csv.reader(ifile)
@@ -70,6 +75,10 @@ def get_spec_model(modelname):
     return loaded_model, d
 
 def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/'):
+    """
+    Write IQ data into npy file
+    The MATLAB *.mat file can also be used
+    """
     if (output_format == 'npy'):
         filename = id_generator()+".npz"
         np.savez(output_folder+filename,channel_iq=channel_iq, fs=fs)
@@ -134,6 +143,10 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None):
 
 
 def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None):
+    """
+    This function generates the features and acts as an entry point into the processing framework
+    The features are generated, logged (if required) and then published to the next block
+    """
     extracted_features, extracted_iq = process_buffer(buffer_data, fs)
 
     # We now have the features and iq data
@@ -141,59 +154,38 @@ def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None):
         print("Logging.....")
         for iq_channel in extracted_iq:
             save_IQ_buffer(iq_channel[0], iq_channel[1])
-    
-    
-    #features_array = np.asarray(extracted_features)
-    
     send_features(extracted_features, pubsocket)
     
-    ## Return to main
-    
-    #for i in extracted_features:
-        #plt.pcolormesh(i[0])
-        #plt.show()
-    
-    ## TODO this will be moved to a seperate server enventually... 
-    
-    ###classify_spectrogram(features_array, loaded_model, loaded_index)
-
-    #sys.exit(1)
-
 def send_features(extracted_features, pubsocket):
+    """
+    Publish the feature arrays over the network
+    The ZMQ socket is passed from the calling function
+    """
     print(pubsocket)
     for data in extracted_features:
         data = np.asarray(data)
         pubsocket.send_pyobj(data)
         #print(data)
-    
-
 
 def classify_spectrogram(input_array, model, index):
-    #input_array = input_array[0]
+    """
+    This function takes the input features and runs them through the classification networks
+    """
     print("LEN:", len(input_array))
     for i in range(0, len(input_array)):
         tmpspec = input_array[i][0]
         tmppsd = input_array[i][1]
-
-        #plt.pcolormesh(tmpspec)
-        #plt.show()
-
-
-        #plt.plot(tmppsd)
-        #plt.show()
         
         #tmpspec = tmpspec.reshape((1, tmpspec.shape[0], tmpspec.shape[1], 1))
         tmpspec_z = np.zeros((1, tmpspec.shape[0], tmpspec.shape[1], 3))
         for j in range(0, 3):
             tmpspec_z[0,:,:,j] = tmpspec
-        #input_tensor = tf.image.grayscale_to_rgb(tmpspec)
-        #print(type(input_tensor))
+
         
         tmpspec_z = tmpspec_z.astype('float32')
         tmpspec_z /= np.max(tmpspec_z)
         prediction_spec = model[0].predict(tmpspec_z)
 
-        #print(prediction)
         idx_spec = npmax(prediction_spec[0])[0]
         print("Classified signal (spec) -->>", index[idx_spec])
         
@@ -206,15 +198,19 @@ def classify_spectrogram(input_array, model, index):
         print("Classified signal (psd) -->>", index[idx_psd])
         #prediction = prediction.flat[0]
 
-
-
 def fft_wrap(iq_buffer, mode = 'pyfftw'):
+    """
+    Compute FFT - either using pyfftw (default) or scipy
+    """
     if mode == 'pyfftw':
         return pyfftw.interfaces.numpy_fft.fft(iq_buffer)
     elif mode == 'scipy':
         return fft(iq_buffer) #### TODO CLEAN
 
 def ifft_wrap(iq_buffer, mode = 'pyfftw'):
+    """
+    Compute IFFT - either using pyfftw (default) or scipy
+    """
     if mode == 'pyfftw':
         return pyfftw.interfaces.numpy_fft.ifft(iq_buffer)
     elif mode == 'scipy':
@@ -222,6 +218,9 @@ def ifft_wrap(iq_buffer, mode = 'pyfftw'):
 
 
 def process_buffer(buffer_in, fs=1):
+    """
+    Analyse input buffer, extract signals and pass onto the classifiers
+    """
     buffer_len = len(buffer_in)
     print("Processing signal. Len:", buffer_len)
     #Do FFT - get it out of the way!
@@ -243,10 +242,6 @@ def process_buffer(buffer_in, fs=1):
     buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
     buffer_fft_smooth = smooth(buffer_fft_smooth, window_len=16)
 
-
-    #plt.plot(buffer_fft_smooth)
-    #plt.show()
-
     #Search for signals of interest
     buffer_peakdata = find_channels(buffer_fft_smooth, peak_threshold, 1)
     #print(buffer_peakdata)
@@ -256,29 +251,21 @@ def process_buffer(buffer_in, fs=1):
         #Decimate the signal in the frequency domain
         #Please note that the OSR value is from the 3dB point of the signal - if there is a long roll off (spectrally) some of the signal mey be cut
         output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, buffer_fft_smooth, peak_i, smooth_stride, OSR)
-
         buf_len = len(buffer_fft_rolled)
-
         if len(output_signal_fft) ==0:
             continue
-        #Pad FFT for faster computation?
-        #output_signal_fft = pad_fft(output_signal_fft)
-        #bandwidth = ((peak_i[1]-peak_i[0])/smooth_stride) * fs
-        #print(bandwidth)
         #Compute IFFT and add to list
         td_channel = ifft_wrap(output_signal_fft, mode = 'scipy')
         output_signals.append(td_channel)
 
     print("We have %i signals!" % (len(output_signals)))
-
+    
     ## Generate Features ##
-
     output_features = []
     output_iq = []
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
-        #print("Resampled FS: ", local_fs)
-        features = generate_features(local_fs, i, plot=True)
+        features = generate_features(local_fs, i, plot=plot)
         features.append(local_fs)
         output_features.append(features)
         output_iq.append([i, local_fs])
@@ -287,6 +274,10 @@ def process_buffer(buffer_in, fs=1):
 
 
 def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = False):
+    """
+    Generate classification features
+    """
+    
     ## Generate normalised spectrogram
     NFFT = math.pow(2, int(math.log(math.sqrt(len(iq_data)), 2) + 0.5)) #Arb constant... Need to analyse TODO
     #print("NFFT:", NFFT)
@@ -304,22 +295,10 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
     Zxx_phi_rs = normalise_spectrogram(Zxx_phi, spec_size, spec_size)
     Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size, spec_size)
     
-
     # We have a array suitable for NNet
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_mag_rs, axis=1)
 
-    #TD_pwr = np.sqrt(np.square(iq_data.real) + np.square(iq_data.imag))
-
-    #plt.plot(PSD)
-    #plt.show()
-
-    ## Generate CWT ##
-    #widths = np.arange(1, 101)
-    #cwtmatr_real = signal.cwt(i.real, signal.ricker, widths)
-    #cwtmatr_imag = signal.cwt(i.imag, signal.ricker, widths)
-    #plt.pcolormesh(cwtmatr_real)
-    #plt.show()
     if plot:
         plt.subplot(2, 2, 1)
         plt.pcolormesh(Zxx_mag_rs)
@@ -331,13 +310,15 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
         plt.pcolormesh(Zxx_cec_rs)
         plt.show()
 
-    output_list = [Zxx_mag_rs, PSD]
+    output_list = [Zxx_mag_rs, Zxx_phi_rs, Zxx_cec_rs, PSD]
 
     return output_list
 
 def smooth(x,window_len=12,window='flat'):
     ## From http://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
-    """smooth the data using a window with variable size."""
+    """
+    Smooth the data using a window with variable size
+    """
 
     if x.ndim != 1:
         raise ValueError("smooth only accepts 1 dimension arrays.")
@@ -363,6 +344,9 @@ def smooth(x,window_len=12,window='flat'):
     return y[int(window_len/2-1):int(-window_len/2)]
 
 def normalise_spectrogram(input_array, newx, newy):
+    """
+    Interpolate NxN array into newx and newy array
+    """
     arr_max = input_array.max()
     arr_min = input_array.min()
     input_array = (input_array-arr_min)/(arr_max-arr_min)
@@ -370,7 +354,9 @@ def normalise_spectrogram(input_array, newx, newy):
     return imresize(input_array, (newx, newy))
 
 def IQ_Balance(IQ_File):
-    """Remove DC offset from input data file"""
+    """
+    Remove DC offset from input data file
+    """
     DC_Offset_Real = np.mean(np.real(IQ_File))
     DC_Offset_Imag = np.mean(np.imag(IQ_File))
     return IQ_File - (DC_Offset_Real + DC_Offset_Imag * 1j)
@@ -385,6 +371,9 @@ def IQ_Balance(IQ_File):
     #return output_fft
 
 def fd_decimate(fft_data, fft_data_smoothed, peakinfo, smooth_stride, osr):
+    """
+    Decimate Buffer in Frequency domain to extract signal from 3db Bandwidth
+    """
     #Calculate 3dB peak bandwidth
     cf = peakinfo[2]*(len(fft_data)/smooth_stride)
     bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo[2])*smooth_stride
@@ -396,14 +385,18 @@ def fd_decimate(fft_data, fft_data_smoothed, peakinfo, smooth_stride, osr):
     return output_fft, bw
 
 def find_3db_bw_JR_single_peak(data, peak):
-    """ Find bandwidth of single peak """
+    """ 
+    Find bandwidth of single peak 
+    """
     max_bw = find_3db_bw_max(data, peak)
     min_bw = find_3db_bw_min(data, peak)
     bw = max_bw - min_bw
     return bw
 
 def find_3db_bw_max(data, peak, step=1):
-    """ Find 3dB point going up the array """
+    """ 
+    Find 3dB point going up the array 
+    """
     max_height = data[peak]
     min_global = np.min(data)
     thresh_3db = max_height - (np.abs(max_height - min_global))/2
@@ -413,7 +406,9 @@ def find_3db_bw_max(data, peak, step=1):
     return len(data)-1 ##Nothing found - should probably raise an error here. TODO check error
 
 def find_3db_bw_min(data, peak, step=1):
-    """ Find 3dB point going down the array"""
+    """ 
+    Find 3dB point going down the array
+    """
     max_height = data[peak]
     min_global = np.min(data)
     thresh_3db = max_height - (np.abs(max_height - min_global))/2
@@ -424,7 +419,9 @@ def find_3db_bw_min(data, peak, step=1):
 
 
 def find_channels(data, min_height, min_distance):
-    """Locate channels within FFT magnitude data - this function does not care about sampling rates etc. It will return the raw sample values. Smoothing is recommended"""
+    """
+    Locate channels within FFT magnitude data - this function does not care about sampling rates etc. It will return the raw sample values. Smoothing is recommended
+    """
     ## Input data numpy array of the data to be searched
     ## min_height is a number between 0 and 1 (e.g. 0.454) that defines the treshold of where a channel starts
 
@@ -465,7 +462,7 @@ def find_channels(data, min_height, min_distance):
             peaklist.append([start_val, i, int(location)])
             #peak_id = peak_id + 1;
         prevStatus = onPeak
-
+    
     #now we check to see if any peaks should be combined
     #for i in range(1,len(peaklist)):
     #    if ((peaklist[i][1][0] - peaklist[i-1][1][1])<min_distance):
@@ -476,6 +473,9 @@ def find_channels(data, min_height, min_distance):
     return peaklist
 
 def generate_wisdom(N, wisdom_f):
+    """
+    Used to generate a .wiz file to speed up boot up times
+    """
     for n in range(1, N+1):
         n = 2**n
         a = np.ones(n, dtype=np.complex64)
@@ -493,6 +493,9 @@ def generate_wisdom(N, wisdom_f):
 
 
 def import_wisdom(wisdom_f):
+    """
+    Load Wisdom file
+    """
     with open(wisdom_f, "rb") as f:
         dump = pickle.load(f)
         # Now you can use the dump object as the original one
@@ -500,6 +503,9 @@ def import_wisdom(wisdom_f):
 
 
 def test_generated_wisdom(N, wisdom_f):
+    """
+    Wisdom tester
+    """
     for n in range(1, N+1):
         n = 2**n
         a = np.ones(n, dtype=np.complex64)
@@ -509,12 +515,12 @@ def test_generated_wisdom(N, wisdom_f):
     print("FFT tested up to %i" % (len(a)))
 
 
-## Leave at bottom of file ##
-if os.path.isfile(wisdom_file):
-    import_wisdom(wisdom_file)
-    print("PyFFTW Wisdom File Exists - Loaded")
+### Leave at bottom of file ##
+#if os.path.isfile(wisdom_file):
+    #import_wisdom(wisdom_file)
+    #print("PyFFTW Wisdom File Exists - Loaded")
 
-else:
-    print("PyFFTW Widom File Not Found - Generating up to %i" %(2**MaxFFTN))
-    generate_wisdom(MaxFFTN, wisdom_file)
-    print("PyFFTW Wisdom File Generated")
+#else:
+    #print("PyFFTW Widom File Not Found - Generating up to %i" %(2**MaxFFTN))
+    #generate_wisdom(MaxFFTN, wisdom_file)
+    #print("PyFFTW Wisdom File Generated")
