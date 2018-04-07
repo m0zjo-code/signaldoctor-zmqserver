@@ -34,7 +34,7 @@ hidden_size_2 = 32
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
 
-input_data = np.load("nnetsetup/SpecTrainingData.npz")
+input_data = np.load("nnetsetup/PhiTrainingData.npz")
 X_train = input_data['X_train']
 y_train = input_data['y_train']
 X_test = input_data['X_test']
