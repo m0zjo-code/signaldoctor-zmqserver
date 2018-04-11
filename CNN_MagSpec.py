@@ -8,6 +8,8 @@ if not USE_GPU:
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
+import keras
+
 from keras.datasets import cifar10 # subroutines for fetching the CIFAR-10 dataset
 from keras.models import Model # basic class for specifying and training a neural network
 from keras.layers import Input, Convolution2D, MaxPooling2D, Dense, Dropout, Flatten
@@ -110,6 +112,12 @@ model_final = Model(inputs=inp, outputs=out) # To define a model, just specify i
 
 ####model_final = Model(input = model.input, output = predictions)
 
+
+
+earlystop = keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.001, patience=50, verbose=1, mode='auto')
+callbacks_list = [earlystop]
+
+
 model_final.summary()
 
 ########################
@@ -117,9 +125,16 @@ model_final.compile(loss='categorical_crossentropy', # using the cross-entropy l
               optimizer=Adamax(), # using the RMS optimiser
               metrics=['accuracy']) # reporting the accuracy
 
-model_final.fit(X_train, Y_train,                # Train the model using the training set...
-          batch_size=batch_size, epochs=num_epochs,
-          verbose=1, validation_split=0.0) # ...holding out 15% of the data for validation
+model_final.fit(X_train, 
+                Y_train,                # Train the model using the training set...
+                batch_size=batch_size, 
+                epochs=num_epochs,
+                verbose=1, 
+                shuffle = True,
+                callbacks=callbacks_list,
+                validation_data=(X_test, Y_test)) # ...holding out 15% of the data for validation
+
+
 
 
 scores = model_final.evaluate(X_test, Y_test, verbose=1)  # Evaluate the trained model on the test set!
