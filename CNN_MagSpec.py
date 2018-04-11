@@ -42,6 +42,9 @@ y_train = input_data['y_train']
 X_test = input_data['X_test']
 y_test = input_data['y_test']
 
+from sklearn.utils import shuffle
+X_train, y_train = shuffle(X_train, y_train, random_state=0)
+
 
 num_train, height, width, depth = X_train.shape # there are 50000 training examples in CIFAR-10
 num_test = X_test.shape[0] # there are 10000 test examples in CIFAR-10

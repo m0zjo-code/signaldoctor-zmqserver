@@ -22,6 +22,9 @@ y_train = input_data['y_train']
 x_test = input_data['X_test']
 y_test = input_data['y_test']
 
+from sklearn.utils import shuffle
+x_train, y_train = shuffle(x_train, y_train, random_state=0)
+
 num_classes = len(np.unique(y_train))
 print("No. Classes:", num_classes)
 

@@ -22,6 +22,11 @@ y_train = input_data['y_train']
 x_test = input_data['X_test']
 y_test = input_data['y_test']
 
+
+from sklearn.utils import shuffle
+x_train, y_train = shuffle(x_train, y_train, random_state=0)
+
+
 num_classes = len(np.unique(y_train))
 print("No. Classes:", num_classes)
 
@@ -65,7 +70,9 @@ history = model.fit(x_train, y_train,
                     verbose=2,
                     shuffle = True,
                     callbacks=callbacks_list,
-                    validation_data=(x_test, y_test))
+                    validation_split=0.2)
+
+
 score = model.evaluate(x_test, y_test, verbose=2)
 print('Test loss:', score[0])
 print('Test accuracy:', score[1])
