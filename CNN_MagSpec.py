@@ -135,7 +135,7 @@ model_final.fit(X_train,
                 verbose=1, 
                 shuffle = True,
                 callbacks=callbacks_list,
-                validation_data=(X_test, Y_test)) # ...holding out 15% of the data for validation
+                validation_split=0.2) # ...holding out 15% of the data for validation
 
 
 

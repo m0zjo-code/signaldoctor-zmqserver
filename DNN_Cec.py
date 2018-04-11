@@ -69,7 +69,7 @@ history = model.fit(x_train, y_train,
                     verbose=1,
                     shuffle = True,
                     callbacks=callbacks_list,
-                    validation_data=(x_test, y_test))
+                    validation_split=0.2)
 
 score = model.evaluate(x_test, y_test, verbose=1)
 print('Test loss:', score[0])
