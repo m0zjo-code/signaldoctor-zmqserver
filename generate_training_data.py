@@ -5,6 +5,9 @@ import matplotlib.pyplot as plt
 
 ## Takes training IQ data and generates training features
 
+SPEC_SIZE = 299 ## NxN input tensor size
+input_folder = "/home/jonathan/TF_Train_1_0"
+
 def load_npz(filename):
     data = np.load(filename)
     iq_data = data['channel_iq']
@@ -32,7 +35,7 @@ def feature_gen(file_list, spec_size):
         #plt.show()
     return [output_list_spec, output_list_phi, output_list_cec, output_list_psd]
 
-input_folder = "/home/jonathan/TF_Train_1_0"
+
 
 for sig in os.listdir(input_folder):
     sig_input_folder = input_folder + "/" + sig
@@ -44,7 +47,7 @@ for sig in os.listdir(input_folder):
             if fileZ.endswith(".npz"):
                 filename_list.append(os.path.join(sig_input_folder, fileZ))
 
-        data_list = feature_gen(filename_list, 256)
+        data_list = feature_gen(filename_list, SPEC_SIZE)
 
         spec_aray = np.asarray(data_list[0])
         phi_array = np.asarray(data_list[1])

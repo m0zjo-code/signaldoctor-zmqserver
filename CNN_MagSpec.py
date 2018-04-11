@@ -2,7 +2,7 @@ import os
 
 USE_GPU = False
 
-USE_PRE_TRAINED_NETWORK = False
+USE_PRE_TRAINED_NETWORK = True
 
 
 ## Set up Tensorflow to use CPU or GPU
@@ -86,6 +86,8 @@ if not USE_PRE_TRAINED_NETWORK:
 
 elif USE_PRE_TRAINED_NETWORK:
     from keras import applications
+    
+    
     X_train_tmp = np.zeros((X_train.shape[0], X_train.shape[1], X_train.shape[2], 3))
     for i in range(0, len(X_train)):
         for j in range(0, 3):
@@ -99,8 +101,9 @@ elif USE_PRE_TRAINED_NETWORK:
     X_test = X_test_tmp
 
     print(X_test.shape)
-
-    model = applications.inception_v3.InceptionV3(include_top=True, weights='imagenet', input_shape = (height, width, 3), classes=num_classes)
+    
+    
+    model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet', input_shape = (height, width, 3), classes=num_classes)
 
     #model = applications.mobilenet.MobileNet(include_top=False, weights='imagenet', input_shape = (height, width, 3), classes=num_classes)
 
@@ -109,8 +112,8 @@ elif USE_PRE_TRAINED_NETWORK:
 
     x = model.output
     x = Flatten()(x)
-    x = Dropout(drop_prob_1)(x)
-    x = Dense(hidden_size_1, activation="relu")(x)
+    x = Dropout(drop_prob_2)(x)
+    x = Dense(hidden_size_2, activation="relu")(x)
     x = Dropout(drop_prob_2)(x)
     x = Dense(hidden_size_2, activation="relu")(x)
     predictions = Dense(num_classes, activation="softmax")(x)
