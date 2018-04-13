@@ -11,7 +11,10 @@ from scipy import signal
 from scipy.io.wavfile import read as wavfileread
 from scipy.io import savemat
 from scipy.misc import imresize, imsave
+from scipy.stats import zscore
 from numpy.fft import fftshift
+
+from detect_peaks import detect_peaks
 
 from keras.models import model_from_json
 import tensorflow as tf
@@ -32,13 +35,14 @@ import matplotlib.pyplot as plt
 energy_threshold = -5
 peak_threshold = 0.2
 smooth_stride = 1024
-fs = 2**21
+fs = 2e6
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
-iq_buffer_len = 100 ##ms
+iq_buffer_len = 2000 ##ms
 OSR = 1
 MODEL_NAME = ["specmodel", "psdmodel"]
-plot = False
+plot = True
+resample_ratio = 256
 
 
 ## Help from -->> https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
@@ -85,7 +89,7 @@ def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/
     else:
         savemat(output_folder+filename+".mat", {'channel_iq':channel_iq, 'fs':fs})
     
-    f, t, Zxx_cmplx = signal.stft(channel_iq, 1, nperseg=256, return_onesided=False)
+    f, t, Zxx_cmplx = signal.stft(channel_iq, 1, nperseg=512, return_onesided=False)
     Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
     imsave(output_folder+filename+".png", Zxx_mag)
 
@@ -218,7 +222,7 @@ def ifft_wrap(iq_buffer, mode = 'pyfftw'):
         return pyfftw.interfaces.numpy_fft.ifft(iq_buffer)
     elif mode == 'scipy':
         return ifft(iq_buffer)
-
+    
 
 def process_buffer(buffer_in, fs=1):
     """
@@ -227,8 +231,8 @@ def process_buffer(buffer_in, fs=1):
     buffer_len = len(buffer_in)
     print("Processing signal. Len:", buffer_len)
     #Do FFT - get it out of the way!
-    buffer_fft = fft_wrap(buffer_in, mode = 'pyfftw')
-
+    buffer_fft = fft_wrap(buffer_in, mode = 'scipy')
+    
     ## Will now unroll FFT for ease of processing
     buffer_fft_rolled = np.roll(buffer_fft, int(len(buffer_fft)/2))
     #Is there any power there?
@@ -240,20 +244,34 @@ def process_buffer(buffer_in, fs=1):
         print("Below threshold - returning nothing")
         return None
 
+    #TODO TODO TODO - Fix narrow band peak detection
     ## "Bin" FFT
     ## Also smooth the buffer
-    buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
-    buffer_fft_smooth = smooth(buffer_fft_smooth, window_len=16)
 
+    buffer_abs = np.reshape(buffer_abs, (resample_ratio, int(len(buffer_abs)/resample_ratio)), order='F')
+    buffer_abs = np.mean(buffer_abs, axis=0)
+    #buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
+    #buffer_fft_smooth = smooth(np.log2(buffer_abs), window_len=10)
+    buffer_abs[buffer_abs == 0] = 0.01 #Remove all zeros
+    
+    buffer_log2abs = buffer_abs
+    for i in range(0,25):
+        buffer_log2abs = smooth(buffer_log2abs, window_len=10, window ='bartlett')
+    
+    ## Normalise
+    buffer_log2abs = zscore(buffer_log2abs)
+    #buffer_log2abs = signal.detrend(buffer_log2abs)
+    buffer_log2abs = buffer_log2abs - np.min(buffer_log2abs)
+    
+    
+      
+    buffer_peakdata = detect_peaks(buffer_log2abs, mph=0.005 , mpd=100, edge='rising', show=True)
     #Search for signals of interest
-    buffer_peakdata = find_channels(buffer_fft_smooth, peak_threshold, 1)
-    #print(buffer_peakdata)
-
     output_signals = []
     for peak_i in buffer_peakdata:
         #Decimate the signal in the frequency domain
-        #Please note that the OSR value is from the 3dB point of the signal - if there is a long roll off (spectrally) some of the signal mey be cut
-        output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, buffer_fft_smooth, peak_i, smooth_stride, OSR)
+        #Please note that the OSR value is from the 3dB point of the signal - if there is a long roll off (spectrally) some of the signal may be cut
+        output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, resample_ratio, buffer_log2abs, peak_i, OSR)
         print("Bandwidth--->>>", bandwidth)
         buf_len = len(buffer_fft_rolled)
         if len(output_signal_fft) ==0:
@@ -261,7 +279,9 @@ def process_buffer(buffer_in, fs=1):
         #Compute IFFT and add to list
         td_channel = ifft_wrap(output_signal_fft, mode = 'scipy')
         output_signals.append(td_channel)
-
+    
+    #TODO TODO TODO - Fix narrow band peak detection
+    
     print("We have %i signals!" % (len(output_signals)))
     
     ## Generate Features ##
@@ -276,6 +296,14 @@ def process_buffer(buffer_in, fs=1):
 
     return output_features, output_iq
 
+def log_enhance(input_array, order=1):
+    input_array_tmp = input_array
+    for i in range(0, order):
+        min_val = np.min(input_array_tmp)
+        input_array_shift = input_array_tmp-min_val+1
+        input_array_tmp = np.log2(input_array_shift)
+    return input_array_tmp
+    
 
 def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = False):
     """
@@ -302,10 +330,12 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
     # We have a array suitable for NNet
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_mag_rs, axis=1)
-
+    
+    kk = np.log2(Zxx_mag_rs+1)
+    
     if plot:
         plt.subplot(2, 2, 1)
-        plt.pcolormesh(Zxx_mag_rs)
+        plt.pcolormesh(log_enhance(Zxx_mag_rs+1, order=1)) ## +1 to stop 0s
         plt.subplot(2, 2, 2)
         plt.pcolormesh(Zxx_phi_rs)
         plt.subplot(2, 2, 3)
@@ -374,15 +404,20 @@ def IQ_Balance(IQ_File):
     #output_fft = np.pad(input_fft, (zeros_add, zeros_add), 'constant', constant_values=(0, 0))
     #return output_fft
 
-def fd_decimate(fft_data, fft_data_smoothed, peakinfo, smooth_stride, osr):
+
+
+def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
     """
     Decimate Buffer in Frequency domain to extract signal from 3db Bandwidth
     """
     #Calculate 3dB peak bandwidth
-    cf = peakinfo[2]*(len(fft_data)/smooth_stride)
-    bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo[2])*smooth_stride
-    slicer_lower = int(cf-(bw/2)*osr)
-    slicer_upper = int(cf+(bw/2)*osr)
+    #TODO
+    
+    cf = peakinfo
+    bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo)
+    bw = 100
+    slicer_lower = int(cf-(bw/2)*osr)*resample_ratio
+    slicer_upper = int(cf+(bw/2)*osr)*resample_ratio
     #print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
     #Slice FFT
     output_fft = fft_data[slicer_lower:slicer_upper]
@@ -394,30 +429,62 @@ def find_3db_bw_JR_single_peak(data, peak):
     """
     max_bw = find_3db_bw_max(data, peak)
     min_bw = find_3db_bw_min(data, peak)
-    bw = max_bw - min_bw
+    bw1 = (max_bw - peak)*2
+    bw2 = (peak - min_bw)*2
+    bw = max(bw1, bw2)
+    print("BW max min:", bw, max_bw, min_bw)
     return bw
 
-def find_3db_bw_max(data, peak, step=1):
+#def find_3db_bw_max(data, peak, step=10):
+    #""" 
+    #Find 3dB point going up the array 
+    #"""
+    #max_height = data[peak]
+    #min_global = np.min(data)
+    #thresh_3db = max_height - (np.abs(max_height - min_global))/2
+    
+    #tdb = np.argmax(data[peak:] < thresh_3db)
+    #return tdb ##Nothing found - should probably raise an error here. TODO check error
+
+#def find_3db_bw_min(data, peak, step=10):
+    #""" 
+    #Find 3dB point going down the array
+    #"""
+    #max_height = data[peak]
+    #min_global = np.min(data)
+    #thresh_3db = max_height - (np.abs(max_height - min_global))/2
+    #tdb = np.argmax(np.flip(data[len(data)-peak:] < thresh_3db, axis=0))
+    #return tdb ##Nothing found - should probably raise an error here
+
+
+def find_3db_bw_max(data, peak, step=10):
     """ 
     Find 3dB point going up the array 
     """
     max_height = data[peak]
     min_global = np.min(data)
     thresh_3db = max_height - (np.abs(max_height - min_global))/2
+    previous_value = max_height
     for i in range(peak, len(data)-1, step):
         if (data[i] < thresh_3db):
             return i
+        elif (data[i] > previous_value):
+            return i
+        previous_value = data[i]
     return len(data)-1 ##Nothing found - should probably raise an error here. TODO check error
 
-def find_3db_bw_min(data, peak, step=1):
+def find_3db_bw_min(data, peak, step=10):
     """ 
     Find 3dB point going down the array
     """
     max_height = data[peak]
     min_global = np.min(data)
     thresh_3db = max_height - (np.abs(max_height - min_global))/2
+    previous_value = max_height
     for i in range(peak, 0-1, -step):
         if (data[i] < thresh_3db):
+            return i
+        elif (data[i] > previous_value):
             return i
     return 0 ##Nothing found - should probably raise an error here
 
