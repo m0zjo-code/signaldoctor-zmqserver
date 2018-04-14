@@ -34,15 +34,20 @@ import matplotlib.pyplot as plt
 ## TODO ADD TO CFG FILE
 energy_threshold = -5
 peak_threshold = 0.2
-smooth_stride = 1024
+smooth_stride = 2
 fs = 2e6
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
-OSR = 1
+OSR = 1.5
 MODEL_NAME = ["specmodel", "psdmodel"]
-plot = True
+plot_features = False
+plot_peaks = False
 resample_ratio = 256
+IQ_FS_OVERRIDE = True
+IQ_FS = fs
+BW_OVERRIDE = False
+BW_OVERRIDE_VAL = 2500/resample_ratio ##Currently its the RS BW
 
 
 ## Help from -->> https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
@@ -89,9 +94,9 @@ def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/
     else:
         savemat(output_folder+filename+".mat", {'channel_iq':channel_iq, 'fs':fs})
     
-    f, t, Zxx_cmplx = signal.stft(channel_iq, 1, nperseg=512, return_onesided=False)
-    Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
-    imsave(output_folder+filename+".png", Zxx_mag)
+    features = generate_features(fs, channel_iq)
+    imsave(output_folder+filename+".png", features[0])
+
 
 
 
@@ -132,7 +137,9 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None):
     #loaded_model, index_dict = get_spec_model(MODEL_NAME)
 
     fs, file_len, iq_file = load_IQ_file(filename)
-    print("Len file: ", file_len )
+    if IQ_FS_OVERRIDE:
+        fs = IQ_FS
+    print("###Loaded IQ File###, Len: %i, Fs %i" % (file_len, fs))
 
     ##Calculate buffer length
     length = (fs/1000)*iq_buffer_len
@@ -256,7 +263,7 @@ def process_buffer(buffer_in, fs=1):
     
     buffer_log2abs = buffer_abs
     for i in range(0,25):
-        buffer_log2abs = smooth(buffer_log2abs, window_len=10, window ='bartlett')
+        buffer_log2abs = smooth(buffer_log2abs, window_len=smooth_stride, window ='bartlett')
     
     ## Normalise
     buffer_log2abs = zscore(buffer_log2abs)
@@ -265,7 +272,7 @@ def process_buffer(buffer_in, fs=1):
     
     
       
-    buffer_peakdata = detect_peaks(buffer_log2abs, mph=0.005 , mpd=100, edge='rising', show=True)
+    buffer_peakdata = detect_peaks(buffer_log2abs, mph=0.005 , mpd=100, edge='rising', show=plot_peaks)
     #Search for signals of interest
     output_signals = []
     for peak_i in buffer_peakdata:
@@ -289,7 +296,7 @@ def process_buffer(buffer_in, fs=1):
     output_iq = []
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
-        features = generate_features(local_fs, i, plot=plot)
+        features = generate_features(local_fs, i, plot=plot_features)
         features.append(local_fs)
         output_features.append(features)
         output_iq.append([i, local_fs])
@@ -321,6 +328,7 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
         Zxx_cmplx = np.roll(Zxx_cmplx, int(len(f)/2), axis=0)
 
     Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
+    Zxx_mag = log_enhance(Zxx_mag, order=2)
     Zxx_phi = np.abs(np.angle(Zxx_cmplx))
     Zxx_cec = np.abs(np.corrcoef(Zxx_mag, Zxx_phi))
     Zxx_mag_rs = normalise_spectrogram(Zxx_mag, spec_size, spec_size)
@@ -331,11 +339,10 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = Fals
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_mag_rs, axis=1)
     
-    kk = np.log2(Zxx_mag_rs+1)
     
-    if plot:
+    if plot_features:
         plt.subplot(2, 2, 1)
-        plt.pcolormesh(log_enhance(Zxx_mag_rs+1, order=1)) ## +1 to stop 0s
+        plt.pcolormesh(Zxx_mag_rs) ## +1 to stop 0s
         plt.subplot(2, 2, 2)
         plt.pcolormesh(Zxx_phi_rs)
         plt.subplot(2, 2, 3)
@@ -415,12 +422,13 @@ def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
     
     cf = peakinfo
     bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo)
-    bw = 100
-    slicer_lower = int(cf-(bw/2)*osr)*resample_ratio
-    slicer_upper = int(cf+(bw/2)*osr)*resample_ratio
+    if BW_OVERRIDE:
+        bw = int(BW_OVERRIDE_VAL)
+    slicer_lower = (cf-(bw/2)*osr)*resample_ratio  ##Offset fix?
+    slicer_upper = (cf+(bw/2)*osr)*resample_ratio
     #print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
     #Slice FFT
-    output_fft = fft_data[slicer_lower:slicer_upper]
+    output_fft = fft_data[int(slicer_lower):int(slicer_upper)]
     return output_fft, bw
 
 def find_3db_bw_JR_single_peak(data, peak):
@@ -431,7 +439,7 @@ def find_3db_bw_JR_single_peak(data, peak):
     min_bw = find_3db_bw_min(data, peak)
     bw1 = (max_bw - peak)*2
     bw2 = (peak - min_bw)*2
-    bw = max(bw1, bw2)
+    bw = min(bw1, bw2)
     print("BW max min:", bw, max_bw, min_bw)
     return bw
 
