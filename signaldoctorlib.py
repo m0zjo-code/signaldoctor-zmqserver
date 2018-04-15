@@ -1,5 +1,6 @@
 """
 Jonathan Rawlinson 2018
+Imperial College EEE Department
 """
 import numpy as np
 import math
@@ -31,23 +32,27 @@ import pickle
 ## DEBUG
 import matplotlib.pyplot as plt
 
-## TODO ADD TO CFG FILE
+## TODO ADD TO CFG FILE/CMD LINE OPTIONS
 energy_threshold = -5
-peak_threshold = 0.2
-smooth_stride = 2
+peak_threshold = None
+
 fs = 2e6
+#fs = 8000
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
-OSR = 1.5
+OSR = 2
 MODEL_NAME = ["specmodel", "psdmodel"]
 plot_features = False
-plot_peaks = False
+plot_peaks = True
 resample_ratio = 256
 IQ_FS_OVERRIDE = True
 IQ_FS = fs
 BW_OVERRIDE = False
-BW_OVERRIDE_VAL = 2500/resample_ratio ##Currently its the RS BW
+BW_OVERRIDE_VAL = 5000/resample_ratio ##Currently its the RS BW
+spectrogram_size = 500
+smooth_no = 25
+smooth_stride = 9
 
 
 ## Help from -->> https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
@@ -97,9 +102,6 @@ def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/
     features = generate_features(fs, channel_iq)
     imsave(output_folder+filename+".png", features[0])
 
-
-
-
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
     """
@@ -118,13 +120,26 @@ def import_buffer(iq_file,fs,start,end):
     #print("\nFile Read:", input_filename, " - Fs:", fs)
     #print(len(samples))
     input_frame = iq_file[int(start):int(end)]
-    input_frame_iq = np.empty(input_frame.shape[:-1], dtype=np.complex)
-    input_frame_iq.real = input_frame[..., 0]
-    input_frame_iq.imag = input_frame[..., 1]
-    # Balance IQ file
-    input_frame_iq = IQ_Balance(input_frame_iq)
-
+    
+    try:
+        print("No Channels:", input_frame.shape[1])
+        REAL_DATA = False
+    except IndexError:
+        print("####Single Channel Audio####")
+        REAL_DATA = True
+    
+    if not REAL_DATA:
+        input_frame_iq = np.zeros(input_frame.shape[:-1], dtype=np.complex)
+        input_frame_iq.real = input_frame[..., 0]
+        input_frame_iq.imag = input_frame[..., 1]
+        # Balance IQ file
+        input_frame_iq = IQ_Balance(input_frame_iq)
+    elif REAL_DATA:
+        input_frame_iq = np.zeros(input_frame.shape[0], dtype=np.complex)
+        input_frame_iq.real = input_frame ### This makes reflections in the negative freq plane (obviously) - need to do fix, freq shift and decimate
+    
     return input_frame_iq, fs
+   
 
 
 ## From https://stackoverflow.com/questions/14267555/find-the-smallest-power-of-2-greater-than-n-in-python
@@ -262,8 +277,8 @@ def process_buffer(buffer_in, fs=1):
     buffer_abs[buffer_abs == 0] = 0.01 #Remove all zeros
     
     buffer_log2abs = buffer_abs
-    for i in range(0,25):
-        buffer_log2abs = smooth(buffer_log2abs, window_len=smooth_stride, window ='bartlett')
+    for i in range(0,smooth_no):
+        buffer_log2abs = smooth(buffer_log2abs, window_len=smooth_stride, window ='flat')
     
     ## Normalise
     buffer_log2abs = zscore(buffer_log2abs)
@@ -272,14 +287,14 @@ def process_buffer(buffer_in, fs=1):
     
     
       
-    buffer_peakdata = detect_peaks(buffer_log2abs, mph=0.005 , mpd=100, edge='rising', show=plot_peaks)
+    buffer_peakdata = detect_peaks(buffer_log2abs, mph=peak_threshold , mpd=1, edge='rising', show=plot_peaks)
     #Search for signals of interest
     output_signals = []
     for peak_i in buffer_peakdata:
         #Decimate the signal in the frequency domain
         #Please note that the OSR value is from the 3dB point of the signal - if there is a long roll off (spectrally) some of the signal may be cut
         output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, resample_ratio, buffer_log2abs, peak_i, OSR)
-        print("Bandwidth--->>>", bandwidth)
+        #print("Bandwidth--->>>", bandwidth)
         buf_len = len(buffer_fft_rolled)
         if len(output_signal_fft) ==0:
             continue
@@ -312,7 +327,7 @@ def log_enhance(input_array, order=1):
     return input_array_tmp
     
 
-def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot = False):
+def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True, plot = False):
     """
     Generate classification features
     """
@@ -424,7 +439,7 @@ def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
     bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo)
     if BW_OVERRIDE:
         bw = int(BW_OVERRIDE_VAL)
-    slicer_lower = (cf-(bw/2)*osr)*resample_ratio  ##Offset fix?
+    slicer_lower = (cf-(bw/2)*osr)*resample_ratio  ##Offset fix? The offset is variable with changes to the smoothing filter - convolution shift?
     slicer_upper = (cf+(bw/2)*osr)*resample_ratio
     #print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
     #Slice FFT
@@ -440,7 +455,7 @@ def find_3db_bw_JR_single_peak(data, peak):
     bw1 = (max_bw - peak)*2
     bw2 = (peak - min_bw)*2
     bw = min(bw1, bw2)
-    print("BW max min:", bw, max_bw, min_bw)
+    #print("BW max min:", bw, max_bw, min_bw)
     return bw
 
 #def find_3db_bw_max(data, peak, step=10):
@@ -551,47 +566,47 @@ def find_channels(data, min_height, min_distance):
     #        del peaklist[i]
     return peaklist
 
-def generate_wisdom(N, wisdom_f):
-    """
-    Used to generate a .wiz file to speed up boot up times
-    """
-    for n in range(1, N+1):
-        n = 2**n
-        a = np.ones(n, dtype=np.complex64)
-        a.real = np.random.rand(n)
-        a.imag = np.random.rand(n)
+#def generate_wisdom(N, wisdom_f):
+    #"""
+    #Used to generate a .wiz file to speed up boot up times
+    #"""
+    #for n in range(1, N+1):
+        #n = 2**n
+        #a = np.ones(n, dtype=np.complex64)
+        #a.real = np.random.rand(n)
+        #a.imag = np.random.rand(n)
 
-        print("Vector of Len: %i generated! :)" % (len(a)))
-        fft_a = pyfftw.interfaces.numpy_fft.fft(a)
-        print("Generated FFT of len: %i" %(len(a)))
+        #print("Vector of Len: %i generated! :)" % (len(a)))
+        #fft_a = pyfftw.interfaces.numpy_fft.fft(a)
+        #print("Generated FFT of len: %i" %(len(a)))
 
-    with open(wisdom_f, "wb") as f:
-        pickle.dump(pyfftw.export_wisdom(), f, pickle.HIGHEST_PROTOCOL)
+    #with open(wisdom_f, "wb") as f:
+        #pickle.dump(pyfftw.export_wisdom(), f, pickle.HIGHEST_PROTOCOL)
 
-    print("Exported Wisdom file")
-
-
-def import_wisdom(wisdom_f):
-    """
-    Load Wisdom file
-    """
-    with open(wisdom_f, "rb") as f:
-        dump = pickle.load(f)
-        # Now you can use the dump object as the original one
-        pyfftw.import_wisdom(dump)
+    #print("Exported Wisdom file")
 
 
-def test_generated_wisdom(N, wisdom_f):
-    """
-    Wisdom tester
-    """
-    for n in range(1, N+1):
-        n = 2**n
-        a = np.ones(n, dtype=np.complex64)
-        a.real = np.random.rand(n)
-        a.imag = np.random.rand(n)
-        fft_a = pyfftw.interfaces.numpy_fft.fft(a)
-    print("FFT tested up to %i" % (len(a)))
+#def import_wisdom(wisdom_f):
+    #"""
+    #Load Wisdom file
+    #"""
+    #with open(wisdom_f, "rb") as f:
+        #dump = pickle.load(f)
+        ## Now you can use the dump object as the original one
+        #pyfftw.import_wisdom(dump)
+
+
+#def test_generated_wisdom(N, wisdom_f):
+    #"""
+    #Wisdom tester
+    #"""
+    #for n in range(1, N+1):
+        #n = 2**n
+        #a = np.ones(n, dtype=np.complex64)
+        #a.real = np.random.rand(n)
+        #a.imag = np.random.rand(n)
+        #fft_a = pyfftw.interfaces.numpy_fft.fft(a)
+    #print("FFT tested up to %i" % (len(a)))
 
 
 ### Leave at bottom of file ##
