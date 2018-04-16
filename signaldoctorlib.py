@@ -43,7 +43,7 @@ wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
 OSR = 1 
 MODEL_NAME = ["specmodel", "psdmodel"]
-plot_features = False
+plot_features = True
 plot_peaks = False
 IQ_FS_OVERRIDE = True
 IQ_FS = fs
@@ -341,6 +341,20 @@ def log_enhance(input_array, order=1):
         input_array_tmp = np.log2(input_array_shift)
     return input_array_tmp
     
+    
+## From: https://stackoverflow.com/questions/16856788/slice-2d-array-into-smaller-2d-arrays
+def blockshaped(arr, nrows, ncols):
+    """
+    Return an array of shape (n, nrows, ncols) where
+    n * nrows * ncols = arr.size
+
+    If arr is a 2D array, the returned array should look like n subblocks with
+    each subblock preserving the "physical" layout of arr.
+    """
+    h, w = arr.shape
+    return (arr.reshape(h//nrows, nrows, -1, ncols)
+               .swapaxes(1,2)
+               .reshape(-1, nrows, ncols))
 
 def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True, plot = False):
     """
@@ -360,26 +374,61 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
     Zxx_mag_log = log_enhance(Zxx_mag, order=2)
     
+    diff_array0 = np.diff(Zxx_mag_log, axis=0)
+    diff_array1 = np.diff(Zxx_mag_log, axis=1)
+    
     Zxx_phi = np.abs(np.angle(Zxx_cmplx))
-    Zxx_cec = np.abs(np.corrcoef(Zxx_mag_log, Zxx_phi))
+    Zxx_cec = np.abs(np.corrcoef(Zxx_mag_log, Zxx_mag_log))
+    
+    
     Zxx_mag_rs = normalise_spectrogram(Zxx_mag_log, spec_size, spec_size)
     Zxx_phi_rs = normalise_spectrogram(Zxx_phi, spec_size, spec_size)
-    Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size, spec_size)
+    Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size*2, spec_size*2)
+    
+    Zxx_cec_rs = blockshaped(Zxx_cec_rs, spec_size, spec_size)
+    Zxx_cec_rs = Zxx_cec_rs[0]
     
     # We have a array suitable for NNet
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_mag_rs, axis=1)
+    Varience_Spectrum = np.var(Zxx_mag_rs, axis=1)
+    
     
     
     if plot_features:
-        plt.subplot(2, 2, 1)
+        plt.subplot(3, 3, 1)
+        plt.title("Magnitude Spectrum")
+        plt.xlabel("Time")
+        plt.ylabel("Frequency")
         plt.pcolormesh(Zxx_mag_rs) ## +1 to stop 0s
-        plt.subplot(2, 2, 2)
+        plt.subplot(3, 3, 2)
+        plt.title("Phase Spectrum")
+        plt.xlabel("Time")
+        plt.ylabel("Frequency")
         plt.pcolormesh(Zxx_phi_rs)
-        plt.subplot(2, 2, 3)
+        plt.subplot(3, 3, 3)
+        plt.title("PSD")
+        plt.xlabel("Frequency")
+        plt.ylabel("Power")
         plt.plot(PSD)
-        plt.subplot(2, 2, 4)
+        plt.subplot(3, 3, 4)
+        plt.title("Autoorrelation Coefficient (Magnitude)")
         plt.pcolormesh(Zxx_cec_rs)
+        plt.subplot(3, 3, 5)
+        plt.title("Frequency Diff Spectrum")
+        plt.xlabel("Time")
+        plt.ylabel("Frequency")
+        plt.pcolormesh(diff_array0)
+        plt.subplot(3, 3, 6)
+        plt.title("Time Diff Spectrum")
+        plt.xlabel("Time")
+        plt.ylabel("Frequency")
+        plt.pcolormesh(diff_array1)
+        plt.subplot(3, 3, 7)
+        plt.title("Varience Spectrum")
+        plt.xlabel("Frequency")
+        plt.ylabel("Power")
+        plt.plot(Varience_Spectrum)
         plt.show()
 
     output_list = [Zxx_mag_rs, Zxx_phi_rs, Zxx_cec_rs, PSD]
