@@ -34,25 +34,39 @@ import matplotlib.pyplot as plt
 
 ## TODO ADD TO CFG FILE/CMD LINE OPTIONS
 energy_threshold = -5
-peak_threshold = None
+peak_threshold = 0.005
 
 fs = 2e6
 #fs = 8000
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
-OSR = 2
+OSR = 1 
 MODEL_NAME = ["specmodel", "psdmodel"]
 plot_features = False
-plot_peaks = True
-resample_ratio = 256
+plot_peaks = False
 IQ_FS_OVERRIDE = True
 IQ_FS = fs
+smooth_no = 1
+
+## Spectrogram Calculation Ratio
+spectrogram_size = 256
+SPEC_OVERLAP_RATIO = 2
+
+## Smoothing Parameters - for 1e6 Hz 
+resample_ratio = 256
+smooth_stride_hz = 5e3
+
+## Bandwidth Calculation Parameters
+BW_CALC_VAR = 4
+
+## Logging
+LOG_IQ = False
+LOG_SPEC = True
+
+## Debug BW Override
 BW_OVERRIDE = False
 BW_OVERRIDE_VAL = 5000/resample_ratio ##Currently its the RS BW
-spectrogram_size = 500
-smooth_no = 25
-smooth_stride = 9
 
 
 ## Help from -->> https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
@@ -94,13 +108,14 @@ def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/
     The MATLAB *.mat file can also be used
     """
     filename = id_generator()
-    if (output_format == 'npy'):
-        np.savez(output_folder+filename+".npz",channel_iq=channel_iq, fs=fs)
-    else:
-        savemat(output_folder+filename+".mat", {'channel_iq':channel_iq, 'fs':fs})
-    
-    features = generate_features(fs, channel_iq)
-    imsave(output_folder+filename+".png", features[0])
+    if LOG_IQ:
+        if (output_format == 'npy'):
+            np.savez(output_folder+filename+".npz",channel_iq=channel_iq, fs=fs)
+        else:
+            savemat(output_folder+filename+".mat", {'channel_iq':channel_iq, 'fs':fs})
+    if LOG_SPEC:
+        features = generate_features(fs, channel_iq)
+        imsave(output_folder+filename+".png", features[0])
 
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -152,8 +167,8 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None):
     #loaded_model, index_dict = get_spec_model(MODEL_NAME)
 
     fs, file_len, iq_file = load_IQ_file(filename)
-    if IQ_FS_OVERRIDE:
-        fs = IQ_FS
+    #if IQ_FS_OVERRIDE:
+        #fs = IQ_FS
     print("###Loaded IQ File###, Len: %i, Fs %i" % (file_len, fs))
 
     ##Calculate buffer length
@@ -265,20 +280,21 @@ def process_buffer(buffer_in, fs=1):
     if (buffer_energy<energy_threshold):
         print("Below threshold - returning nothing")
         return None
-
-    #TODO TODO TODO - Fix narrow band peak detection
-    ## "Bin" FFT
-    ## Also smooth the buffer
-
+    
+    ## Resampling 
     buffer_abs = np.reshape(buffer_abs, (resample_ratio, int(len(buffer_abs)/resample_ratio)), order='F')
     buffer_abs = np.mean(buffer_abs, axis=0)
-    #buffer_fft_smooth = signal.resample(buffer_abs, smooth_stride)
-    #buffer_fft_smooth = smooth(np.log2(buffer_abs), window_len=10)
-    buffer_abs[buffer_abs == 0] = 0.01 #Remove all zeros
+    
+    ## If we want to compute the logarithm of the data for peak finding, remove all zeros
+    #buffer_abs[buffer_abs == 0] = 0.01 #Remove all zeros
+    
+    smooth_stride = int((buffer_len*smooth_stride_hz)/(resample_ratio*fs))
+    
     
     buffer_log2abs = buffer_abs
+    print("Smoothing, stride: %i Hz, No %i" % (int(smooth_stride*resample_ratio*fs/buffer_len), smooth_no))
     for i in range(0,smooth_no):
-        buffer_log2abs = smooth(buffer_log2abs, window_len=smooth_stride, window ='flat')
+        buffer_log2abs = smooth(buffer_log2abs, window_len=smooth_stride, window ='hanning')
     
     ## Normalise
     buffer_log2abs = zscore(buffer_log2abs)
@@ -287,7 +303,7 @@ def process_buffer(buffer_in, fs=1):
     
     
       
-    buffer_peakdata = detect_peaks(buffer_log2abs, mph=peak_threshold , mpd=1, edge='rising', show=plot_peaks)
+    buffer_peakdata = detect_peaks(buffer_log2abs, mph=peak_threshold , mpd=2, edge='rising', show=plot_peaks)
     #Search for signals of interest
     output_signals = []
     for peak_i in buffer_peakdata:
@@ -302,7 +318,6 @@ def process_buffer(buffer_in, fs=1):
         td_channel = ifft_wrap(output_signal_fft, mode = 'scipy')
         output_signals.append(td_channel)
     
-    #TODO TODO TODO - Fix narrow band peak detection
     
     print("We have %i signals!" % (len(output_signals)))
     
@@ -335,7 +350,7 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     ## Generate normalised spectrogram
     NFFT = math.pow(2, int(math.log(math.sqrt(len(iq_data)), 2) + 0.5)) #Arb constant... Need to analyse TODO
     #print("NFFT:", NFFT)
-    f, t, Zxx_cmplx = signal.stft(iq_data, local_fs, nperseg=NFFT, return_onesided=False)
+    f, t, Zxx_cmplx = signal.stft(iq_data, local_fs, noverlap=NFFT/SPEC_OVERLAP_RATIO, nperseg=NFFT, return_onesided=False)
     f = fftshift(f)
     #f = np.roll(f, int(len(f)/2))
     Zxx_cmplx = fftshift(Zxx_cmplx, axes=0)
@@ -343,10 +358,11 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
         Zxx_cmplx = np.roll(Zxx_cmplx, int(len(f)/2), axis=0)
 
     Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
-    Zxx_mag = log_enhance(Zxx_mag, order=2)
+    Zxx_mag_log = log_enhance(Zxx_mag, order=2)
+    
     Zxx_phi = np.abs(np.angle(Zxx_cmplx))
-    Zxx_cec = np.abs(np.corrcoef(Zxx_mag, Zxx_phi))
-    Zxx_mag_rs = normalise_spectrogram(Zxx_mag, spec_size, spec_size)
+    Zxx_cec = np.abs(np.corrcoef(Zxx_mag_log, Zxx_phi))
+    Zxx_mag_rs = normalise_spectrogram(Zxx_mag_log, spec_size, spec_size)
     Zxx_phi_rs = normalise_spectrogram(Zxx_phi, spec_size, spec_size)
     Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size, spec_size)
     
@@ -439,8 +455,8 @@ def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
     bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo)
     if BW_OVERRIDE:
         bw = int(BW_OVERRIDE_VAL)
-    slicer_lower = (cf-(bw/2)*osr)*resample_ratio  ##Offset fix? The offset is variable with changes to the smoothing filter - convolution shift?
-    slicer_upper = (cf+(bw/2)*osr)*resample_ratio
+    slicer_lower = (cf-(bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no ##Offset fix? The offset is variable with changes to the smoothing filter - convolution shift?
+    slicer_upper = (cf+(bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no
     #print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
     #Slice FFT
     output_fft = fft_data[int(slicer_lower):int(slicer_upper)]
@@ -458,27 +474,6 @@ def find_3db_bw_JR_single_peak(data, peak):
     #print("BW max min:", bw, max_bw, min_bw)
     return bw
 
-#def find_3db_bw_max(data, peak, step=10):
-    #""" 
-    #Find 3dB point going up the array 
-    #"""
-    #max_height = data[peak]
-    #min_global = np.min(data)
-    #thresh_3db = max_height - (np.abs(max_height - min_global))/2
-    
-    #tdb = np.argmax(data[peak:] < thresh_3db)
-    #return tdb ##Nothing found - should probably raise an error here. TODO check error
-
-#def find_3db_bw_min(data, peak, step=10):
-    #""" 
-    #Find 3dB point going down the array
-    #"""
-    #max_height = data[peak]
-    #min_global = np.min(data)
-    #thresh_3db = max_height - (np.abs(max_height - min_global))/2
-    #tdb = np.argmax(np.flip(data[len(data)-peak:] < thresh_3db, axis=0))
-    #return tdb ##Nothing found - should probably raise an error here
-
 
 def find_3db_bw_max(data, peak, step=10):
     """ 
@@ -486,12 +481,12 @@ def find_3db_bw_max(data, peak, step=10):
     """
     max_height = data[peak]
     min_global = np.min(data)
-    thresh_3db = max_height - (np.abs(max_height - min_global))/2
+    thresh = max_height - (np.abs(max_height - min_global))/BW_CALC_VAR
     previous_value = max_height
     for i in range(peak, len(data)-1, step):
-        if (data[i] < thresh_3db):
+        if (data[i] < thresh):
             return i
-        elif (data[i] > previous_value):
+        elif (data[i] > previous_value): ## Need to Interpolate Thresh BW here
             return i
         previous_value = data[i]
     return len(data)-1 ##Nothing found - should probably raise an error here. TODO check error
@@ -502,119 +497,66 @@ def find_3db_bw_min(data, peak, step=10):
     """
     max_height = data[peak]
     min_global = np.min(data)
-    thresh_3db = max_height - (np.abs(max_height - min_global))/2
+    thresh = max_height - (np.abs(max_height - min_global))/BW_CALC_VAR
     previous_value = max_height
     for i in range(peak, 0-1, -step):
-        if (data[i] < thresh_3db):
+        if (data[i] < thresh):
             return i
         elif (data[i] > previous_value):
             return i
     return 0 ##Nothing found - should probably raise an error here
 
 
-def find_channels(data, min_height, min_distance):
-    """
-    Locate channels within FFT magnitude data - this function does not care about sampling rates etc. It will return the raw sample values. Smoothing is recommended
-    """
-    ## Input data numpy array of the data to be searched
-    ## min_height is a number between 0 and 1 (e.g. 0.454) that defines the treshold of where a channel starts
+#def find_channels(data, min_height, min_distance):
+    #"""
+    #Locate channels within FFT magnitude data - this function does not care about sampling rates etc. It will return the raw sample values. Smoothing is recommended
+    #"""
+    ### Input data numpy array of the data to be searched
+    ### min_height is a number between 0 and 1 (e.g. 0.454) that defines the treshold of where a channel starts
 
-    psd_len = len(data)
+    #psd_len = len(data)
 
-    max_data = np.max(data) #find max value
-    min_data = np.mean(data) #find mean value TEST - Using mean as min to smooth out dips
-    #min_data = np.min(data) #find min value
-    #print("Min Data Val:",min_data," Max Data Val: ", max_data)
+    #max_data = np.max(data) #find max value
+    #min_data = np.mean(data) #find mean value TEST - Using mean as min to smooth out dips
+    ##min_data = np.min(data) #find min value
+    ##print("Min Data Val:",min_data," Max Data Val: ", max_data)
 
-    thresh = (max_data-min_data)*min_height + min_data #Calculate the threshold for channel detection. TODO Look at delta mean instead?
-    #print("Threshold Val: ",thresh)
-    peaklist = []
+    #thresh = (max_data-min_data)*min_height + min_data #Calculate the threshold for channel detection. TODO Look at delta mean instead?
+    ##print("Threshold Val: ",thresh)
+    #peaklist = []
 
-    if data[0] < thresh: #Get initial state
-        onPeak = False
-    elif data[0] >= thresh:
-        onPeak = True
+    #if data[0] < thresh: #Get initial state
+        #onPeak = False
+    #elif data[0] >= thresh:
+        #onPeak = True
 
-    prevStatus = onPeak
-    start_val = 0
-    #peak_id = 0;
-    for i in range(1, len(data)): ## Run over PSD and return peaks above threshold
-        if data[i] < thresh:
-            onPeak = False
-        elif data[i] >= thresh:
-            onPeak = True
+    #prevStatus = onPeak
+    #start_val = 0
+    ##peak_id = 0;
+    #for i in range(1, len(data)): ## Run over PSD and return peaks above threshold
+        #if data[i] < thresh:
+            #onPeak = False
+        #elif data[i] >= thresh:
+            #onPeak = True
 
-        if onPeak == True and prevStatus == False:
-            # Just arrived on peak
-            start_val = i;
-        elif onPeak == False and prevStatus == True:
-            # Just left Peak
-            width = i - start_val
-            location = np.floor(start_val+width/2)
-            #power = calculate_power(data[start_val:i])
-            #peaklist.append([peak_id, [start_val, i], int(location)])
-            peaklist.append([start_val, i, int(location)])
-            #peak_id = peak_id + 1;
-        prevStatus = onPeak
+        #if onPeak == True and prevStatus == False:
+            ## Just arrived on peak
+            #start_val = i;
+        #elif onPeak == False and prevStatus == True:
+            ## Just left Peak
+            #width = i - start_val
+            #location = np.floor(start_val+width/2)
+            ##power = calculate_power(data[start_val:i])
+            ##peaklist.append([peak_id, [start_val, i], int(location)])
+            #peaklist.append([start_val, i, int(location)])
+            ##peak_id = peak_id + 1;
+        #prevStatus = onPeak
     
-    #now we check to see if any peaks should be combined
-    #for i in range(1,len(peaklist)):
-    #    if ((peaklist[i][1][0] - peaklist[i-1][1][1])<min_distance):
-    #        print(i)
-    #        peaklist[i-1][1][1] = peaklist[i][1][1]
-    #        peaklist[i-1][2] = (peaklist[i-1][2]+peaklist[i][2])/2
-    #        del peaklist[i]
-    return peaklist
-
-#def generate_wisdom(N, wisdom_f):
-    #"""
-    #Used to generate a .wiz file to speed up boot up times
-    #"""
-    #for n in range(1, N+1):
-        #n = 2**n
-        #a = np.ones(n, dtype=np.complex64)
-        #a.real = np.random.rand(n)
-        #a.imag = np.random.rand(n)
-
-        #print("Vector of Len: %i generated! :)" % (len(a)))
-        #fft_a = pyfftw.interfaces.numpy_fft.fft(a)
-        #print("Generated FFT of len: %i" %(len(a)))
-
-    #with open(wisdom_f, "wb") as f:
-        #pickle.dump(pyfftw.export_wisdom(), f, pickle.HIGHEST_PROTOCOL)
-
-    #print("Exported Wisdom file")
-
-
-#def import_wisdom(wisdom_f):
-    #"""
-    #Load Wisdom file
-    #"""
-    #with open(wisdom_f, "rb") as f:
-        #dump = pickle.load(f)
-        ## Now you can use the dump object as the original one
-        #pyfftw.import_wisdom(dump)
-
-
-#def test_generated_wisdom(N, wisdom_f):
-    #"""
-    #Wisdom tester
-    #"""
-    #for n in range(1, N+1):
-        #n = 2**n
-        #a = np.ones(n, dtype=np.complex64)
-        #a.real = np.random.rand(n)
-        #a.imag = np.random.rand(n)
-        #fft_a = pyfftw.interfaces.numpy_fft.fft(a)
-    #print("FFT tested up to %i" % (len(a)))
-
-
-### Leave at bottom of file ##
-#if os.path.isfile(wisdom_file):
-    #import_wisdom(wisdom_file)
-    #print("PyFFTW Wisdom File Exists - Loaded")
-
-#else:
-    #print("PyFFTW Widom File Not Found - Generating up to %i" %(2**MaxFFTN))
-    #generate_wisdom(MaxFFTN, wisdom_file)
-    #print("PyFFTW Wisdom File Generated")
+    ##now we check to see if any peaks should be combined
+    ##for i in range(1,len(peaklist)):
+    ##    if ((peaklist[i][1][0] - peaklist[i-1][1][1])<min_distance):
+    ##        print(i)
+    ##        peaklist[i-1][1][1] = peaklist[i][1][1]
+    ##        peaklist[i-1][2] = (peaklist[i-1][2]+peaklist[i][2])/2
+    ##        del peaklist[i]
+    #return peaklist
