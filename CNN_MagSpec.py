@@ -2,7 +2,7 @@ import os
 
 USE_GPU = False
 
-USE_PRE_TRAINED_NETWORK = True
+USE_PRE_TRAINED_NETWORK = False
 
 
 ## Set up Tensorflow to use CPU or GPU
@@ -34,7 +34,7 @@ conv_depth_1 = 32 # we will initially have 32 kernels per conv. layer...
 conv_depth_2 = 64 # ...switching to 64 after the first pooling layer
 drop_prob_1 = 0.25 # dropout after pooling with probability 0.25
 drop_prob_2 = 0.25 # dropout in the FC layer with probability 0.5
-hidden_size_1 = 512# the FC layer will have 512 neurons
+hidden_size_1 = 32# the FC layer will have 512 neurons
 hidden_size_2 = 32
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
@@ -100,7 +100,7 @@ elif USE_PRE_TRAINED_NETWORK:
             X_test_tmp[i,:,:,j] = X_test[i, :, :, 0]
     X_test = X_test_tmp
 
-    print(X_test.shape)
+    #print(X_test.shape)
     
     
     model = applications.inception_v3.InceptionV3(include_top=False, weights='imagenet', input_shape = (height, width, 3), classes=num_classes)
