@@ -41,9 +41,9 @@ fs = 2e6
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
-OSR = 1 
+OSR = 1.5
 MODEL_NAME = ["specmodel", "psdmodel"]
-plot_features = True
+plot_features = False
 plot_peaks = False
 IQ_FS_OVERRIDE = True
 IQ_FS = fs
@@ -61,7 +61,7 @@ smooth_stride_hz = 5e3
 BW_CALC_VAR = 4
 
 ## Logging
-LOG_IQ = False
+LOG_IQ = True
 LOG_SPEC = True
 
 ## Debug BW Override
@@ -148,7 +148,7 @@ def import_buffer(iq_file,fs,start,end):
         input_frame_iq.real = input_frame[..., 0]
         input_frame_iq.imag = input_frame[..., 1]
         # Balance IQ file
-        input_frame_iq = IQ_Balance(input_frame_iq)
+        input_frame_iq = remove_DC(input_frame_iq)
     elif REAL_DATA:
         input_frame_iq = np.zeros(input_frame.shape[0], dtype=np.complex)
         input_frame_iq.real = input_frame ### This makes reflections in the negative freq plane (obviously) - need to do fix, freq shift and decimate
@@ -377,7 +377,7 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     diff_array0 = np.diff(Zxx_mag_log, axis=0)
     diff_array1 = np.diff(Zxx_mag_log, axis=1)
     
-    Zxx_phi = np.abs(np.angle(Zxx_cmplx))
+    Zxx_phi = np.abs(np.unwrap(np.angle(Zxx_cmplx), axis=0))
     Zxx_cec = np.abs(np.corrcoef(Zxx_mag_log, Zxx_mag_log))
     
     
@@ -392,7 +392,7 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_mag_rs, axis=1)
     Varience_Spectrum = np.var(Zxx_mag_rs, axis=1)
-    
+    Differential_Spectrum = np.sum(np.abs(diff_array1))
     
     
     if plot_features:
@@ -429,6 +429,8 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Varience_Spectrum)
+        mng = plt.get_current_fig_manager() ## Make full screen
+        mng.full_screen_toggle()
         plt.show()
 
     output_list = [Zxx_mag_rs, Zxx_phi_rs, Zxx_cec_rs, PSD]
@@ -474,24 +476,13 @@ def normalise_spectrogram(input_array, newx, newy):
 
     return imresize(input_array, (newx, newy))
 
-def IQ_Balance(IQ_File):
+def remove_DC(IQ_File):
     """
     Remove DC offset from input data file
     """
     DC_Offset_Real = np.mean(np.real(IQ_File))
     DC_Offset_Imag = np.mean(np.imag(IQ_File))
     return IQ_File - (DC_Offset_Real + DC_Offset_Imag * 1j)
-
-#def pad_fft(input_fft):
-    ##Pad to 2^n to speed up ifft
-    #output_len = len(input_fft)
-    #required_len = 2**np.ceil(np.log2(output_len))
-    #out_deficit = required_len-output_len
-    #zeros_add = int(out_deficit/2)
-    #output_fft = np.pad(input_fft, (zeros_add, zeros_add), 'constant', constant_values=(0, 0))
-    #return output_fft
-
-
 
 def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
     """
@@ -555,57 +546,3 @@ def find_3db_bw_min(data, peak, step=10):
             return i
     return 0 ##Nothing found - should probably raise an error here
 
-
-#def find_channels(data, min_height, min_distance):
-    #"""
-    #Locate channels within FFT magnitude data - this function does not care about sampling rates etc. It will return the raw sample values. Smoothing is recommended
-    #"""
-    ### Input data numpy array of the data to be searched
-    ### min_height is a number between 0 and 1 (e.g. 0.454) that defines the treshold of where a channel starts
-
-    #psd_len = len(data)
-
-    #max_data = np.max(data) #find max value
-    #min_data = np.mean(data) #find mean value TEST - Using mean as min to smooth out dips
-    ##min_data = np.min(data) #find min value
-    ##print("Min Data Val:",min_data," Max Data Val: ", max_data)
-
-    #thresh = (max_data-min_data)*min_height + min_data #Calculate the threshold for channel detection. TODO Look at delta mean instead?
-    ##print("Threshold Val: ",thresh)
-    #peaklist = []
-
-    #if data[0] < thresh: #Get initial state
-        #onPeak = False
-    #elif data[0] >= thresh:
-        #onPeak = True
-
-    #prevStatus = onPeak
-    #start_val = 0
-    ##peak_id = 0;
-    #for i in range(1, len(data)): ## Run over PSD and return peaks above threshold
-        #if data[i] < thresh:
-            #onPeak = False
-        #elif data[i] >= thresh:
-            #onPeak = True
-
-        #if onPeak == True and prevStatus == False:
-            ## Just arrived on peak
-            #start_val = i;
-        #elif onPeak == False and prevStatus == True:
-            ## Just left Peak
-            #width = i - start_val
-            #location = np.floor(start_val+width/2)
-            ##power = calculate_power(data[start_val:i])
-            ##peaklist.append([peak_id, [start_val, i], int(location)])
-            #peaklist.append([start_val, i, int(location)])
-            ##peak_id = peak_id + 1;
-        #prevStatus = onPeak
-    
-    ##now we check to see if any peaks should be combined
-    ##for i in range(1,len(peaklist)):
-    ##    if ((peaklist[i][1][0] - peaklist[i-1][1][1])<min_distance):
-    ##        print(i)
-    ##        peaklist[i-1][1][1] = peaklist[i][1][1]
-    ##        peaklist[i-1][2] = (peaklist[i-1][2]+peaklist[i][2])/2
-    ##        del peaklist[i]
-    #return peaklist
