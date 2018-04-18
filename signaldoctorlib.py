@@ -355,7 +355,7 @@ def blockshaped(arr, nrows, ncols):
                .swapaxes(1,2)
                .reshape(-1, nrows, ncols))
 
-def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True, plot = False):
+def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True, plot_features = False):
     """
     Generate classification features
     """
@@ -376,6 +376,9 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     diff_array0 = np.diff(Zxx_mag_log, axis=0)
     diff_array1 = np.diff(Zxx_mag_log, axis=1)
     
+    diff_array0_rs = normalise_spectrogram(diff_array0, spec_size, spec_size)
+    diff_array1_rs = normalise_spectrogram(diff_array1, spec_size, spec_size)
+    
     Zxx_phi = np.abs(np.unwrap(np.angle(Zxx_cmplx), axis=0))
     Zxx_cec = np.abs(np.corrcoef(Zxx_mag_log, Zxx_mag_log))
     
@@ -391,13 +394,10 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_mag_rs, axis=1)
     Varience_Spectrum = np.var(Zxx_mag_rs, axis=1)
-    Differential_Spectrum = np.sum(np.abs(diff_array1), axis=1)
+    Differential_Spectrum = np.sum(np.abs(diff_array1_rs), axis=1)
     
     Min_Spectrum = np.min(Zxx_mag_rs, axis=1)
     Max_Spectrum = np.max(Zxx_mag_rs, axis=1)
-    
-    print("Diff spectrum")
-    print(Differential_Spectrum)
     
     
     if plot_features:
@@ -464,8 +464,8 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     output_dict['psd'] = PSD
     output_dict['variencespectrum'] = Varience_Spectrum
     output_dict['differentialspectrumdensity'] = Differential_Spectrum
-    output_dict['differentialspectrum_freq'] = diff_array0
-    output_dict['differentialspectrum_time'] = diff_array1
+    output_dict['differentialspectrum_freq'] = diff_array0_rs
+    output_dict['differentialspectrum_time'] = diff_array1_rs
     output_dict['min_spectrum'] = Min_Spectrum
     output_dict['max_spectrum'] = Max_Spectrum
 
