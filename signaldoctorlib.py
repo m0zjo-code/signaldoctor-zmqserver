@@ -43,7 +43,7 @@ wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
 OSR = 1.5
 MODEL_NAME = ["specmodel", "psdmodel"]
-plot_features = False
+plot_features = True
 plot_peaks = False
 IQ_FS_OVERRIDE = True
 IQ_FS = fs
@@ -391,7 +391,13 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     ## Generate spectral info by taking mean of spectrogram ##
     PSD = np.mean(Zxx_mag_rs, axis=1)
     Varience_Spectrum = np.var(Zxx_mag_rs, axis=1)
-    Differential_Spectrum = np.sum(np.abs(diff_array1))
+    Differential_Spectrum = np.sum(np.abs(diff_array1), axis=1)
+    
+    Min_Spectrum = np.min(Zxx_mag_rs, axis=1)
+    Max_Spectrum = np.max(Zxx_mag_rs, axis=1)
+    
+    print("Diff spectrum")
+    print(Differential_Spectrum)
     
     
     if plot_features:
@@ -400,34 +406,53 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(Zxx_mag_rs) ## +1 to stop 0s
+        
         plt.subplot(3, 3, 2)
-        plt.title("Phase Spectrum")
-        plt.xlabel("Time")
-        plt.ylabel("Frequency")
-        plt.pcolormesh(Zxx_phi_rs)
+        plt.title("Max Spectrum")
+        plt.xlabel("Frequency")
+        plt.ylabel("Power")
+        plt.plot(Max_Spectrum)
+        
         plt.subplot(3, 3, 3)
         plt.title("PSD")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(PSD)
+        
         plt.subplot(3, 3, 4)
         plt.title("Autoorrelation Coefficient (Magnitude)")
         plt.pcolormesh(Zxx_cec_rs)
+        
         plt.subplot(3, 3, 5)
         plt.title("Frequency Diff Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(diff_array0)
+        
         plt.subplot(3, 3, 6)
         plt.title("Time Diff Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(diff_array1)
+        
         plt.subplot(3, 3, 7)
         plt.title("Varience Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Varience_Spectrum)
+        
+        plt.subplot(3, 3, 8)
+        plt.title("Differential Spectrum")
+        plt.xlabel("Frequency")
+        plt.ylabel("Power")
+        plt.plot(Differential_Spectrum)
+        
+        plt.subplot(3, 3, 9)
+        plt.title("Min Spectrum")
+        plt.xlabel("Frequency")
+        plt.ylabel("Power")
+        plt.plot(Min_Spectrum)
+        
         mng = plt.get_current_fig_manager() ## Make full screen
         mng.full_screen_toggle()
         plt.show()
@@ -441,9 +466,8 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     output_dict['differentialspectrumdensity'] = Differential_Spectrum
     output_dict['differentialspectrum_freq'] = diff_array0
     output_dict['differentialspectrum_time'] = diff_array1
-    
-    
-    #output_list = [Zxx_mag_rs, Zxx_phi_rs, Zxx_cec_rs, PSD]
+    output_dict['min_spectrum'] = Min_Spectrum
+    output_dict['max_spectrum'] = Max_Spectrum
 
     return output_dict
 
