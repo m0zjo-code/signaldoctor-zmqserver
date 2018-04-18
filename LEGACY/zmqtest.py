@@ -15,4 +15,3 @@ while True:
     print(i)
     i = i + 1
     print(type(array))
-    print(array.shape)

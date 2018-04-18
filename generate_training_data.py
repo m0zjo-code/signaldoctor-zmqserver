@@ -1,12 +1,13 @@
 import numpy as np
 import signaldoctorlib as sdl
 import os
+import glob
 import matplotlib.pyplot as plt
 
 ## Takes training IQ data and generates training features
 
 SPEC_SIZE = 299 ## NxN input tensor size
-input_folder = "/home/jonathan/TF_Train_1_0"
+input_folder = "/home/jonathan/HF_Dataset"
 
 def load_npz(filename):
     data = np.load(filename)
@@ -26,16 +27,30 @@ def feature_gen(file_list, spec_size):
         #print("We have %f s of data" % (len(iq_data)/fs))
         print(filename)
 
-        Zxx_mag_rs, Zxx_phi_rs, Zxx_cec_rs, PSD = sdl.generate_features(fs, iq_data, spec_size, False)
-        output_list_spec.append(Zxx_mag_rs)
-        output_list_psd.append(PSD)
-        output_list_phi.append(Zxx_phi_rs)
-        output_list_cec.append(Zxx_cec_rs)
+        feature_dict = sdl.generate_features(fs, iq_data, spec_size, False)
+        output_list_spec.append(feature_dict['magnitude'])
+        output_list_psd.append(feature_dict['psd'])
+        output_list_phi.append(feature_dict['phase'])
+        output_list_cec.append(feature_dict['corrcoef'])
         #plt.pcolormesh(Zxx_dat)
         #plt.show()
     return [output_list_spec, output_list_phi, output_list_cec, output_list_psd]
 
 
+def clear_dir(path):
+    file_list = glob.glob(path)
+    for f in file_list:
+        try:
+            os.remove(f)
+        except:
+            print("DIR")
+
+## Delete old data
+clear_dir('nnetsetup/specdata/*')
+clear_dir('nnetsetup/psddata/*')
+clear_dir('nnetsetup/phidata/*')
+clear_dir('nnetsetup/cecdata/*')
+clear_dir('nnetsetup/*')
 
 for sig in os.listdir(input_folder):
     sig_input_folder = input_folder + "/" + sig
@@ -53,6 +68,7 @@ for sig in os.listdir(input_folder):
         phi_array = np.asarray(data_list[1])
         cec_array = np.asarray(data_list[2])
         psd_aray = np.asarray(data_list[3])
+        
         np.save('nnetsetup/specdata/' + sig + '.npy', spec_aray)
         np.save('nnetsetup/psddata/' + sig + '.npy', psd_aray)
         np.save('nnetsetup/phidata/' + sig + '.npy', phi_array)
