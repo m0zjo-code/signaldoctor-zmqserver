@@ -102,7 +102,7 @@ def get_spec_model(modelname):
             d[int(v)] = k
     return loaded_model, d
 
-def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/'):
+def save_IQ_buffer(channel_dict, output_format = 'npy', output_folder = 'logs/'):
     """
     Write IQ data into npy file
     The MATLAB *.mat file can also be used
@@ -110,12 +110,12 @@ def save_IQ_buffer(channel_iq, fs, output_format = 'npy', output_folder = 'logs/
     filename = id_generator()
     if LOG_IQ:
         if (output_format == 'npy'):
-            np.savez(output_folder+filename+".npz",channel_iq=channel_iq, fs=fs)
+            np.savez(output_folder+filename+".npz",channel_iq=channel_dict['iq_data'], fs=channel_dict['local_fs'])
         else:
-            savemat(output_folder+filename+".mat", {'channel_iq':channel_iq, 'fs':fs})
+            savemat(output_folder+filename+".mat", {'channel_iq':channel_dict['iq_data'], 'fs':channel_dict['local_fs']})
     if LOG_SPEC:
-        features = generate_features(fs, channel_iq)
-        imsave(output_folder+filename+".png", features[0])
+        #features = generate_features(fs, channel_iq)
+        imsave(output_folder+filename+".png", channel_dict['magnitude'])
 
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -191,14 +191,14 @@ def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None):
     This function generates the features and acts as an entry point into the processing framework
     The features are generated, logged (if required) and then published to the next block
     """
-    extracted_features, extracted_iq = process_buffer(buffer_data, fs)
+    extracted_iq = process_buffer(buffer_data, fs)
 
     # We now have the features and iq data
     if LOG_IQ:
         print("Logging.....")
         for iq_channel in extracted_iq:
-            save_IQ_buffer(iq_channel[0], iq_channel[1])
-    send_features(extracted_features, pubsocket)
+            save_IQ_buffer(iq_channel)
+    send_features(extracted_iq, pubsocket)
     
 def send_features(extracted_features, pubsocket):
     """
@@ -322,16 +322,15 @@ def process_buffer(buffer_in, fs=1):
     print("We have %i signals!" % (len(output_signals)))
     
     ## Generate Features ##
-    output_features = []
     output_iq = []
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
-        features = generate_features(local_fs, i, plot=plot_features)
-        features.append(local_fs)
-        output_features.append(features)
-        output_iq.append([i, local_fs])
-
-    return output_features, output_iq
+        feature_dict = generate_features(local_fs, i, plot=plot_features)
+        feature_dict['local_fs'] = local_fs
+        feature_dict['iq_data'] = i
+        output_iq.append(feature_dict)
+    
+    return output_iq
 
 def log_enhance(input_array, order=1):
     input_array_tmp = input_array
@@ -432,10 +431,21 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
         mng = plt.get_current_fig_manager() ## Make full screen
         mng.full_screen_toggle()
         plt.show()
+    
+    output_dict = {}
+    output_dict['magnitude'] = Zxx_mag_rs
+    output_dict['phase'] = Zxx_phi_rs
+    output_dict['corrcoef'] = Zxx_cec_rs
+    output_dict['psd'] = PSD
+    output_dict['variencespectrum'] = Varience_Spectrum
+    output_dict['differentialspectrumdensity'] = Differential_Spectrum
+    output_dict['differentialspectrum_freq'] = diff_array0
+    output_dict['differentialspectrum_time'] = diff_array1
+    
+    
+    #output_list = [Zxx_mag_rs, Zxx_phi_rs, Zxx_cec_rs, PSD]
 
-    output_list = [Zxx_mag_rs, Zxx_phi_rs, Zxx_cec_rs, PSD]
-
-    return output_list
+    return output_dict
 
 def smooth(x,window_len=12,window='flat'):
     ## From http://scipy-cookbook.readthedocs.io/items/SignalSmooth.html
