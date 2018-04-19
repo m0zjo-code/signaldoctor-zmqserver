@@ -43,7 +43,7 @@ wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
 OSR = 1.5
 MODEL_NAME = ["specmodel", "psdmodel"]
-plot_features = True
+plot_features = False
 plot_peaks = False
 IQ_FS_OVERRIDE = True
 IQ_FS = fs
@@ -325,7 +325,7 @@ def process_buffer(buffer_in, fs=1):
     output_iq = []
     for i in output_signals:
         local_fs = fs * len(i)/buffer_len
-        feature_dict = generate_features(local_fs, i, plot=plot_features)
+        feature_dict = generate_features(local_fs, i, plot_features=plot_features)
         feature_dict['local_fs'] = local_fs
         feature_dict['iq_data'] = i
         output_iq.append(feature_dict)
