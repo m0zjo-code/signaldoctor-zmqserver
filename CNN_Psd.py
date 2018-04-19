@@ -26,7 +26,7 @@ import numpy as np
 from keras.callbacks import TensorBoard
 from time import time
 
-batch_size = 32 # in each iteration, we consider 32 training examples at once
+batch_size = 16 # in each iteration, we consider 32 training examples at once
 num_epochs = 2000 # we iterate 2000 times over the entire training set
 kernel_size = 3 # we will use 3x3 kernels throughout
 pool_size = 2 # we will use 2x2 pooling throughout
