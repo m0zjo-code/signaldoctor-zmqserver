@@ -34,8 +34,8 @@ conv_depth_1 = 32 # we will initially have 32 kernels per conv. layer...
 conv_depth_2 = 64 # ...switching to 64 after the first pooling layer
 drop_prob_1 = 0.25 # dropout after pooling with probability 0.25
 drop_prob_2 = 0.25 # dropout in the FC layer with probability 0.5
-hidden_size_1 = 32# the FC layer will have 512 neurons
-hidden_size_2 = 32
+hidden_size_1 = 512# the FC layer will have 512 neurons
+hidden_size_2 = 512
 earlystop_p = 5
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
