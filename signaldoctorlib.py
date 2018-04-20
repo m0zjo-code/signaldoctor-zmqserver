@@ -36,7 +36,7 @@ import matplotlib.pyplot as plt
 energy_threshold = -5
 peak_threshold = 0.005
 
-fs = 2e6
+#fs = 2e6
 #fs = 8000
 MaxFFTN = 22
 wisdom_file = "fftw_wisdom.wiz"
@@ -44,9 +44,9 @@ iq_buffer_len = 2000 ##ms
 OSR = 1.5
 MODEL_NAME = ["specmodel", "psdmodel"]
 plot_features = False
-plot_peaks = False
-IQ_FS_OVERRIDE = True
-IQ_FS = fs
+plot_peaks = True
+#IQ_FS_OVERRIDE = True
+#IQ_FS = fs
 smooth_no = 1
 
 ## Spectrogram Calculation Ratio
@@ -63,6 +63,7 @@ BW_CALC_VAR = 4
 ## Logging
 LOG_IQ = True
 LOG_SPEC = True
+LOG_MODE = 'mat'
 
 ## Debug BW Override
 BW_OVERRIDE = False
@@ -150,8 +151,11 @@ def import_buffer(iq_file,fs,start,end):
         # Balance IQ file
         input_frame_iq = remove_DC(input_frame_iq)
     elif REAL_DATA:
-        input_frame_iq = np.zeros(input_frame.shape[0], dtype=np.complex)
-        input_frame_iq.real = input_frame ### This makes reflections in the negative freq plane (obviously) - need to do fix, freq shift and decimate
+        input_frame_iq = np.zeros((int(input_frame.shape[0]/2), 2), dtype=np.complex)
+        input_frame_iq = input_frame
+        #input_frame = np.reshape(input_frame, (int(input_frame.shape[0]/2), 2))
+        #input_frame_iq = input_frame[...,0]# + 1j*input_frame[...,1] ### This makes reflections in the negative freq plane (obviously) - need to do fix, freq shift and decimate
+        #input_frame_iq.imag = input_frame[...,1] 
     
     return input_frame_iq, fs
    
@@ -197,7 +201,7 @@ def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None):
     if LOG_IQ:
         print("Logging.....")
         for iq_channel in extracted_iq:
-            save_IQ_buffer(iq_channel)
+            save_IQ_buffer(iq_channel, output_format=LOG_MODE)
     send_features(extracted_iq, pubsocket)
     
 def send_features(extracted_features, pubsocket):
