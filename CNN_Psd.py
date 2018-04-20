@@ -36,6 +36,7 @@ drop_prob_1 = 0.25 # dropout after pooling with probability 0.25
 drop_prob_2 = 0.25 # dropout in the FC layer with probability 0.5
 hidden_size_1 = 64# the FC layer will have 512 neurons
 hidden_size_2 = 64
+earlystop_p = 5
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
 
@@ -87,7 +88,7 @@ model_final = Model(inputs=inp, outputs=out) # To define a model, just specify i
 
 
 
-earlystop = keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.001, patience=50, verbose=1, mode='auto')
+earlystop = keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.001, patience=earlystop_p, verbose=1, mode='auto')
 callbacks_list = [earlystop]
 
 
@@ -122,3 +123,7 @@ with open("psdmodel.nn", "w") as json_file:
 model_final.save_weights("psdmodel.h5")
 print("Saved model to disk")
 
+from sklearn.metrics import confusion_matrix
+Y_predict = model_final.predict(X_test)
+conf_matx = confusion_matrix(Y_test.argmax(axis=1), Y_predict.argmax(axis=1))
+print(conf_matx)
