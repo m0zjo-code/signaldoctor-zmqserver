@@ -23,7 +23,7 @@ import tensorflow as tf
 
 ## FFT Config
 import pyfftw
-from scipy.fftpack import fft, ifft
+from scipy.fftpack import fft, ifft, fftn
 
 ## SETUP
 import os.path
@@ -44,7 +44,7 @@ iq_buffer_len = 2000 ##ms
 OSR = 1.5
 MODEL_NAME = ["specmodel", "psdmodel"]
 plot_features = False
-plot_peaks = True
+plot_peaks = False
 #IQ_FS_OVERRIDE = True
 #IQ_FS = fs
 smooth_no = 1
@@ -375,6 +375,9 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
         Zxx_cmplx = np.roll(Zxx_cmplx, int(len(f)/2), axis=0)
 
     Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
+    
+    Zxx_mag_fft = np.abs(fftn(Zxx_mag))
+    Zxx_mag_fft = np.fft.fftshift(Zxx_mag_fft)
     Zxx_mag_log = log_enhance(Zxx_mag, order=2)
     
     diff_array0 = np.diff(Zxx_mag_log, axis=0)
@@ -403,59 +406,74 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     Min_Spectrum = np.min(Zxx_mag_rs, axis=1)
     Max_Spectrum = np.max(Zxx_mag_rs, axis=1)
     
+    Zxx_mag_hilb = np.abs(signal.hilbert(Zxx_mag.astype(np.float), axis=1))
     
     if plot_features:
-        plt.subplot(3, 3, 1)
+        nx = 3
+        ny = 4
+        plt.subplot(nx, ny, 1)
         plt.title("Magnitude Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(Zxx_mag_rs) ## +1 to stop 0s
         
-        plt.subplot(3, 3, 2)
+        plt.subplot(nx, ny, 2)
         plt.title("Max Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Max_Spectrum)
         
-        plt.subplot(3, 3, 3)
+        plt.subplot(nx, ny, 3)
         plt.title("PSD")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(PSD)
         
-        plt.subplot(3, 3, 4)
+        plt.subplot(nx, ny, 4)
         plt.title("Autoorrelation Coefficient (Magnitude)")
         plt.pcolormesh(Zxx_cec_rs)
         
-        plt.subplot(3, 3, 5)
+        plt.subplot(nx, ny, 5)
         plt.title("Frequency Diff Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(diff_array0)
         
-        plt.subplot(3, 3, 6)
+        plt.subplot(nx, ny, 6)
         plt.title("Time Diff Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(diff_array1)
         
-        plt.subplot(3, 3, 7)
+        plt.subplot(nx, ny, 7)
         plt.title("Varience Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Varience_Spectrum)
         
-        plt.subplot(3, 3, 8)
+        plt.subplot(nx, ny, 8)
         plt.title("Differential Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Differential_Spectrum)
         
-        plt.subplot(3, 3, 9)
+        plt.subplot(nx, ny, 9)
         plt.title("Min Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Min_Spectrum)
+        
+        plt.subplot(nx, ny, 10)
+        plt.title("FT Spectrum")
+        plt.xlabel(" ")
+        plt.ylabel(" ")
+        plt.pcolormesh(Zxx_mag_fft)
+        
+        plt.subplot(nx, ny, 11)
+        plt.title("Hilbert Spectrum")
+        plt.xlabel(" ")
+        plt.ylabel(" ")
+        plt.pcolormesh(Zxx_mag_hilb)
         
         mng = plt.get_current_fig_manager() ## Make full screen
         mng.full_screen_toggle()
@@ -472,6 +490,8 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     output_dict['differentialspectrum_time'] = diff_array1_rs
     output_dict['min_spectrum'] = Min_Spectrum
     output_dict['max_spectrum'] = Max_Spectrum
+    output_dict['fft_spectrum'] = normalise_spectrogram(Zxx_mag_fft, spec_size, spec_size)
+    output_dict['hilb_spectrum'] = normalise_spectrogram(Zxx_mag_hilb, spec_size, spec_size)
 
     return output_dict
 
