@@ -36,7 +36,7 @@ drop_prob_1 = 0.25 # dropout after pooling with probability 0.25
 drop_prob_2 = 0.25 # dropout in the FC layer with probability 0.5
 hidden_size_1 = 512# the FC layer will have 512 neurons
 hidden_size_2 = 512
-earlystop_p = 5
+earlystop_p = 10
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
 
