@@ -107,6 +107,10 @@ The following python libraries are required:
 - pyfftw (if faster FFT computation is required)
 - pyzmq
 
+```sh 
+sudo -H pip3 install numpy scipy keras tensorflow h5py matplotlib pyfftw pyzmq
+```
+
 GNURadio is also required (along with support for the radio you want to use).
 
 ```sh 
