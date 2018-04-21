@@ -70,13 +70,46 @@ This module takes wideband IQ data from GNURadio over the network and provides t
 
 Processing pre-recorded IQ data from a .wav file:
 ```sh
-python3 spectrum_processor.py -i /your/file.wav
+python3 spectrum_processor.py -c /the/config.cfg -i /your/file.wav
 ```
 
 Processing live IQ data from GNURadio:  %%%TBC%%%
 ```sh
-python3 spectrum_processor.py -l 127.0.0.1:3343
+python3 spectrum_processor.py -c /the/config.cfg -i 127.0.0.1:3343 
 ```
 
+A config file "spectrum_processor.cfg" (default name) controls the main operation parameters.
 
+#### Spectrum Classifier %%%TBC%%%
+This module takes IQ packets taken from the Spectrum Processor and runs them through the classification network/s.
+The following functions are implemented:
+- Feature calculation
+- The data is run through the neiral network/s
+- The predicted signal class, bandwith, location and other misc details are transmitted over the network
+
+```sh 
+python3 spectrum_classifier.py -c /the/config.cfg -i 127.0.0.1:3243
+```
+
+A config file "spectrum_classifier.cfg" (default name) controls the main operation parameters.
+
+
+# Setup
+
+The following python libraries are required:
+- numpy
+- scipy
+- detect_peaks
+- keras
+- tensorflow
+- h5py
+- matplotlib
+- pyfftw (if faster FFT computation is required)
+- pyzmq
+
+GNURadio is also required (along with support for the radio you want to use).
+
+```sh 
+sudo apt install gnuradio
+```
 
