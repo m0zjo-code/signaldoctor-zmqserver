@@ -17,10 +17,6 @@ from numpy.fft import fftshift
 
 from detect_peaks import detect_peaks
 
-from keras.models import model_from_json
-import tensorflow as tf
-
-
 ## FFT Config
 import pyfftw
 from scipy.fftpack import fft, ifft, fftn
@@ -79,29 +75,6 @@ def npmax(l):
     max_val = l[max_idx]
     return (max_idx, max_val)
 
-
-def get_spec_model(modelname):
-    """ 
-    Load models from file 
-    Returns model and indexes 
-    """
-    loaded_model = []
-    for i in MODEL_NAME:
-        json_file = open('%s.nn'%(i), 'r')
-        loaded_model_json = json_file.read()
-        json_file.close()
-        loaded_model.append(model_from_json(loaded_model_json))
-        # load weights into new model
-        loaded_model[-1].load_weights("%s.h5"%(i))
-        print("Loaded model from disk")
-    ## https://stackoverflow.com/questions/6740918/creating-a-dictionary-from-a-csv-file
-    with open('spec_data_index.csv', mode='r') as ifile:
-        reader = csv.reader(ifile)
-        d = {}
-        for row in reader:
-            k, v = row
-            d[int(v)] = k
-    return loaded_model, d
 
 def save_IQ_buffer(channel_dict, output_format = 'npy', output_folder = 'logs/'):
     """
@@ -190,29 +163,28 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None):
         classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket)
 
 
-def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None):
+def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=None):
     """
     This function generates the features and acts as an entry point into the processing framework
     The features are generated, logged (if required) and then published to the next block
     """
-    extracted_iq = process_buffer(buffer_data, fs)
+    extracted_iq_dict = process_buffer(buffer_data, fs)
 
     # We now have the features and iq data
     if LOG_IQ:
         print("Logging.....")
-        for iq_channel in extracted_iq:
+        for iq_channel in extracted_iq_dict:
             save_IQ_buffer(iq_channel, output_format=LOG_MODE)
-    send_features(extracted_iq, pubsocket)
+    send_features(extracted_iq_dict, pubsocket, metadata=metadata)
     
-def send_features(extracted_features, pubsocket):
+def send_features(extracted_features, pubsocket, metadata=None):
     """
     Publish the feature arrays over the network
     The ZMQ socket is passed from the calling function
     """
-    print(pubsocket)
-    for data in extracted_features:
-        data = np.asarray(data)
-        pubsocket.send_pyobj(data)
+    for feature_dict in extracted_features:
+        #data = np.asarray(data)
+        pubsocket.send_pyobj({'iq_data':np.asarray(feature_dict['iq_data']), 'local_fs':feature_dict['local_fs'], 'metadata':metadata})
         #print(data)
 
 def classify_spectrogram(input_array, model, index):

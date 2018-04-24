@@ -15,6 +15,8 @@ import matplotlib.pyplot as plt
 
 fs = 2.09715e6
 
+metadata = {'radio':'HackRF', 'cf':13.9e6}
+
 def main(argv):
     IQ_LOCAL = None
     IQ_FILE = None
@@ -63,7 +65,7 @@ def main(argv):
     while True:
         string = socket.recv()
         buffer_data = np.fromstring(string, dtype = 'complex64')
-        sdl.classify_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=pubsocket)
+        sdl.classify_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=pubsocket, metadata=metadata)
 
 
 if __name__ == "__main__":
