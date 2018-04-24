@@ -31,14 +31,13 @@ import matplotlib.pyplot as plt
 ## TODO ADD TO CFG FILE/CMD LINE OPTIONS
 energy_threshold = -5
 peak_threshold = 0.005
+peak_threshold = 1
 
 #fs = 2e6
 #fs = 8000
 MaxFFTN = 22
-wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
 OSR = 1.5
-MODEL_NAME = ["specmodel", "psdmodel"]
 plot_features = False
 plot_peaks = False
 #IQ_FS_OVERRIDE = True
