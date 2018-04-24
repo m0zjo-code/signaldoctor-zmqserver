@@ -1,0 +1,49 @@
+<html>
+    <head>
+        {% if title %}
+        <title>{{ title }} - SignalView</title>
+        {% else %}
+        <title>Welcome to SignalView!</title>
+        {% endif %}
+        <meta http-equiv="refresh" content="5" >
+    </head>
+    <body>
+
+        <h1 style="text-align: center;"><strong>SignalView V0.0.1</strong></h1>
+        <img src="/static/logo.png">
+        <table style="width: 100%; border-collapse: collapse; margin-left: auto; margin-right: auto;" border="1">
+        <tbody>
+        <tr style="height: 21px;">
+        <td style="width: 16%; height: 21px; text-align: center;"><strong>Timestamp</strong></td>
+        <td style="width: 16%; height: 21px; text-align: center;"><strong>Center Frequency/Hz</strong></td>
+        <td style="width: 16%; height: 21px; text-align: center;"><strong>Class Prediction 1</strong></td>
+        <td style="width: 16%; height: 21px; text-align: center;"><strong>Class Prediction 2</strong></td>
+        <td style="width: 16%; height: 21px; text-align: center;"><strong>Radio ID</strong></td>
+        <td style="width: 16%; height: 21px; text-align: center;"><strong>Unique ID</strong></td>
+        </tr>
+
+        {% for row in sig_data %}
+            </tr>
+            <tr style="height: 21px;">
+            <td style="width: 16%; height: 21px;">{{row[2]}}</td>
+            <td style="width: 16%; height: 21px;">{{row[0]}}</td>
+            <td style="width: 16%; height: 21px;">{{row[1]}}</td>
+            <td style="width: 16%; height: 21px;">{{row[5]}}</td>
+            <td style="width: 16%; height: 21px;">{{row[3]}}</td>
+            <td style="width: 16%; height: 21px;">{{row[4]}}</td>
+            </tr>
+        {% endfor %}
+        
+        </tbody>
+        </table>
+        <p></p>
+        <p>Debug info: 127.0.0.1:5555</p>
+        
+        <form method="POST">
+            no_records: <input type="number" name="No. Entries:"><br>
+            <input type="submit" value="Submit"><br>
+        </form>
+        
+        <input type="button" value="Refresh Page" onClick="window.location.reload()">
+    </body>
+</html>
