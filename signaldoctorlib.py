@@ -138,7 +138,7 @@ def power_bit_length(x):
     x = int(x)
     return 2**((x-1).bit_length()-1)
 
-def process_iq_file(filename, LOG_IQ, pubsocket=None):
+def process_iq_file(filename, LOG_IQ, pubsocket=None, metadata=None):
 
     #loaded_model, index_dict = get_spec_model(MODEL_NAME)
 
@@ -159,7 +159,7 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None):
         ## Read IQ data into memory
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         print("IQ Len: ", len(in_frame))
-        classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket)
+        classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket, metadata=metadata)
 
 
 def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=None):
