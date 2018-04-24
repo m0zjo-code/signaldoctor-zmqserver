@@ -49,7 +49,7 @@ def main(argv):
     if  IQ_LOCAL:
         print("Reading local IQ")
         print("Input file: ", IQ_FILE)
-        sdl.process_iq_file(IQ_FILE,LOG_IQ, pubsocket=pubsocket)
+        sdl.process_iq_file(IQ_FILE,LOG_IQ, pubsocket=pubsocket, metadata=metadata)
         sys.exit()
 
     # Socket to talk to server
