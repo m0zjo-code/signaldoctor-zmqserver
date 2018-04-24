@@ -2,6 +2,8 @@ import zmq
 import numpy as np
 import signaldoctorlib as sdl
 import signaldoctorlib_class as sdlc
+import sqlite3
+import time, datetime
 
 plot_features = False
 
@@ -43,10 +45,13 @@ while True:
     print("Spec Prediction -->> %s"%index1[class_output1])
     
     output_dict = {}
-    output_dict['pred1'] = class_output1
-    output_dict['pred2'] = class_output2
+    output_dict['pred1'] = index1[class_output1]
+    output_dict['pred2'] = index2[class_output2]
     output_dict['metadata'] = input_packet['metadata']
-    output_dict['spectrogram'] = input_packet['magnitude']
-    pubsocket.send_pyobj(output_dict)
+    output_dict['spectrogram'] = feature_dict['magnitude']
+    ts = time.time()
+    output_dict['timestamp'] = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%dT%H:%M:%S.%f')
+    print(output_dict['metadata'])
+    socket_tx.send_pyobj(output_dict)
     
 
