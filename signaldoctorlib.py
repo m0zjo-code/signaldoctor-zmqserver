@@ -63,7 +63,7 @@ BW_CALC_VAR = 4
 ## Logging
 LOG_IQ = True
 LOG_SPEC = True
-LOG_MODE = 'mat'
+LOG_MODE = 'npz'
 
 ## Debug BW Override
 BW_OVERRIDE = False

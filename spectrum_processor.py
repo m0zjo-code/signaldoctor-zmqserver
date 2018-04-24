@@ -8,12 +8,12 @@ pubport = 5556
 import signaldoctorlib as sdl
 
 LOG_IQ = True
-MODEL_NAME = "specmodel"
+#MODEL_NAME = "specmodel"
 
 ## DEBUG
 import matplotlib.pyplot as plt
 
-
+fs = 2.09715e6
 
 def main(argv):
     IQ_LOCAL = None
@@ -58,12 +58,12 @@ def main(argv):
 
     socket.setsockopt_string(zmq.SUBSCRIBE, "")
 
-    loaded_model, index_dict = sdl.get_spec_model(MODEL_NAME)
+    #loaded_model, index_dict = sdl.get_spec_model(MODEL_NAME)
 
     while True:
         string = socket.recv()
         buffer_data = np.fromstring(string, dtype = 'complex64')
-        sdl.classify_buffer(buffer_data, fs=1, LOG_IQ=LOG_IQ, pubsocket=pubsocket)
+        sdl.classify_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=pubsocket)
 
 
 if __name__ == "__main__":
