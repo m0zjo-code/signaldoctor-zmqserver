@@ -167,14 +167,14 @@ def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=N
     This function generates the features and acts as an entry point into the processing framework
     The features are generated, logged (if required) and then published to the next block
     """
-    extracted_iq_dict = process_buffer(buffer_data, fs)
+    extracted_iq_dict = process_buffer(buffer_data, fs, tx_socket = pubsocket[1])
 
     # We now have the features and iq data
     if LOG_IQ:
         print("Logging.....")
         for iq_channel in extracted_iq_dict:
             save_IQ_buffer(iq_channel, output_format=LOG_MODE)
-    send_features(extracted_iq_dict, pubsocket, metadata=metadata)
+    send_features(extracted_iq_dict, pubsocket[0], metadata=metadata)
     
 def send_features(extracted_features, pubsocket, metadata=None):
     """
@@ -183,8 +183,12 @@ def send_features(extracted_features, pubsocket, metadata=None):
     """
     for feature_dict in extracted_features:
         #data = np.asarray(data)
-        pubsocket.send_pyobj({'iq_data':np.asarray(feature_dict['iq_data']), 'local_fs':feature_dict['local_fs'], 'metadata':metadata})
+        feature_dict['iq_data'] = np.asarray(feature_dict['iq_data'])
+        feature_dict['metadata'] = metadata
+        pubsocket.send_pyobj(feature_dict)
         #print(data)
+
+
 
 def classify_spectrogram(input_array, model, index):
     """
@@ -236,7 +240,7 @@ def ifft_wrap(iq_buffer, mode = 'pyfftw'):
         return ifft(iq_buffer)
     
 
-def process_buffer(buffer_in, fs=1):
+def process_buffer(buffer_in, fs=1, tx_socket=None):
     """
     Analyse input buffer, extract signals and pass onto the classifiers
     """
@@ -291,21 +295,28 @@ def process_buffer(buffer_in, fs=1):
             continue
         #Compute IFFT and add to list
         td_channel = ifft_wrap(output_signal_fft, mode = 'scipy')
-        output_signals.append(td_channel)
+        output_signals.append([td_channel, peak_i*resample_ratio])
     
     
     print("We have %i signals!" % (len(output_signals)))
     
     ## Generate Features ##
-    output_iq = []
+    output_signal_data = []
     for i in output_signals:
-        local_fs = fs * len(i)/buffer_len
-        feature_dict = generate_features(local_fs, i, plot_features=plot_features)
+        buf = i[0]
+        local_fs = fs * len(buf)/buffer_len
+        feature_dict = generate_features(local_fs, buf, plot_features=plot_features)
         feature_dict['local_fs'] = local_fs
-        feature_dict['iq_data'] = i
-        output_iq.append(feature_dict)
+        feature_dict['iq_data'] = buf
+        feature_dict['offset'] = (fs * (i[1]-buffer_len/2)/buffer_len)
+        output_signal_data.append(feature_dict)
     
-    return output_iq
+    globaltx_dict = {}
+    globaltx_dict['recent_psd'] = buffer_log2abs.tolist()
+    
+    tx_socket.send_pyobj(globaltx_dict) ## Send global psd
+    
+    return output_signal_data
 
 def log_enhance(input_array, order=1):
     input_array_tmp = input_array
