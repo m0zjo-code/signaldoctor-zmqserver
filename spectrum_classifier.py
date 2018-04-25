@@ -44,14 +44,14 @@ while True:
     class_output2 = sdlc.classify_buffer2d(feature_dict, model2, spec_size = 256)
     print("Spec Prediction -->> %s"%index1[class_output1])
     
-    output_dict = {}
-    output_dict['pred1'] = index1[class_output1]
-    output_dict['pred2'] = index2[class_output2]
-    output_dict['metadata'] = input_packet['metadata']
-    output_dict['spectrogram'] = feature_dict['magnitude']
+    #output_dict = {}
+    feature_dict['pred1'] = index1[class_output1]
+    feature_dict['pred2'] = index2[class_output2]
+    feature_dict['metadata'] = input_packet['metadata']
+    feature_dict['offset'] = input_packet['offset']
     ts = time.time()
-    output_dict['timestamp'] = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%dT%H:%M:%S.%f')
-    print(output_dict['metadata'])
-    socket_tx.send_pyobj(output_dict)
+    feature_dict['timestamp'] = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%dT%H:%M:%S.%f')
+    print(feature_dict['metadata'])
+    socket_tx.send_pyobj(feature_dict)
     
 

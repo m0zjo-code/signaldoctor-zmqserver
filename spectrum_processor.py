@@ -4,6 +4,7 @@ import numpy as np
 import sys, getopt
 port = 5555
 pubport = 5556
+pubport_global = 5558
 
 import signaldoctorlib as sdl
 
@@ -15,7 +16,7 @@ import matplotlib.pyplot as plt
 
 fs = 2.09715e6
 
-metadata = {'radio':'HackRF', 'cf':13.9e6}
+metadata = {'radio':'HackRF', 'cf':3.9e6}
 
 def main(argv):
     IQ_LOCAL = None
@@ -26,6 +27,10 @@ def main(argv):
     pubcontext = zmq.Context()
     pubsocket = pubcontext.socket(zmq.PUB)
     pubsocket.bind('tcp://127.0.0.1:%i' % pubport)
+    
+    pubcontext_global = zmq.Context()
+    pubsocket_global = pubcontext_global.socket(zmq.PUB)
+    pubsocket_global.bind('tcp://127.0.0.1:%i' % pubport_global)
     
     try:
         opts, args = getopt.getopt(argv,"hli:",["ifile="])
@@ -49,7 +54,7 @@ def main(argv):
     if  IQ_LOCAL:
         print("Reading local IQ")
         print("Input file: ", IQ_FILE)
-        sdl.process_iq_file(IQ_FILE,LOG_IQ, pubsocket=pubsocket, metadata=metadata)
+        sdl.process_iq_file(IQ_FILE,LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata)
         sys.exit()
 
     # Socket to talk to server
