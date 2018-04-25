@@ -23,6 +23,21 @@
     </head>
     <body>
         
+        <script type="text/javascript">
+        g = new Dygraph(
+
+            // containing div
+            document.getElementById("graphdiv"),
+
+            // CSV or path to a CSV file.
+            "Date,Temperature\n" +
+            "2008-05-07,75\n" +
+            "2008-05-08,70\n" +
+            "2008-05-09,80\n"
+
+        );
+        </script>
+        <div id="graphdiv"></div>
         
         
         <h1 style="text-align: center;"><strong>SignalView V0.0.1</strong></h1>
