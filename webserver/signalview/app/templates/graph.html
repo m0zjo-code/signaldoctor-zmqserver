@@ -1,48 +1,110 @@
 <html>
 <head>
 
-    {% if title %}
-    <title>{{ title }} - SignalView</title>
-    {% else %}
-    <title>Welcome to SignalView!</title>
-    {% endif %}
+    <title>##SignalViewV0.0.1##</title>
+
     <meta http-equiv="refresh" content="300" >
 
 
     <link href="/static/css/bootstrap.min.css" rel="stylesheet" media="screen">
-    <script src="http://code.jquery.com/jquery-latest.js"></script>
+    <script src="/static/js/jquery-latest.js"></script>
     <script src="/static/js/bootstrap.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script type="text/javascript"
-    src="/static/js/dygraph.js"></script>
-    <link rel="stylesheet" src="/static/css/dygraph.css" />
+    
+    <!-- Plotly.js -->
+   <script src="/static/js/plotly-latest.min.js"></script>
+    
 </head>
 
 
 <body>
-
-
-    <h1 style="text-align: center;"><strong>SignalView V0.0.1</strong></h1>
-    <img src="/static/logo.png">
-    
     <script>
         let d = new Date();
         document.body.innerHTML = "Last refresh time: " + d
     </script>
+
+    <h1 style="text-align: center;"><strong>SignalView V0.0.1</strong></h1>
+    <img src="/static/logo.png">
     
-    <p>Debug info: 127.0.0.1:5555</p>
+    
+<!--     <p>Debug info: 127.0.0.1:5555</p> -->
+    
+    
+    
     <input type="button" value="Refresh Page" onClick="window.location.reload()">
 
 
     <p></p>
-    <div id="graphdiv2" align="center"
-    style="width:95%; height:300px;"></div>
-    <script type="text/javascript">
-    g2 = new Dygraph(
-    document.getElementById("graphdiv2"),
-    "/static/psd.csv", // path to CSV file
-    {}          // options
-    );
+
+    <div id="myDiv" style="width: 100%; height: 400px;"></div>
+    <script>
+        
+        var trace1 = {
+            x: {{labels[0]}},
+            y: {{labels[1]}},
+            mode: 'markers+text',
+            name: 'Signal Markers',
+//             text: {{labels[2]}},
+            textposition: 'top',
+            type: 'scatter'
+        };
+        
+        
+        function makeplot() {
+            Plotly.d3.csv("/static/psd.csv", function(data){ processData(data) } );
+
+        };
+            
+        function processData(allRows) {
+
+            console.log(allRows);
+            var x = [], y = [], standard_deviation = [];
+
+            for (var i=0; i<allRows.length; i++) {
+                row = allRows[i];
+                x.push( row['Frequency'] );
+                y.push( row['psd'] );
+            }
+            console.log( 'X',x, 'Y',y, 'SD',standard_deviation );
+            makePlotly( x, y, standard_deviation );
+        }
+
+        function makePlotly( x, y, standard_deviation ){
+            var plotDiv = document.getElementById("plot");
+            var traces = [{
+                x: x, 
+                y: y,
+                name: 'PSD'
+            }, trace1];
+
+            Plotly.newPlot('myDiv', traces, 
+                {
+                title: 'Live PSD View',
+                "titlefont": {
+                    "size": 36,
+                },
+                xaxis: {
+                    title: 'Frequency/Hz',
+                    titlefont: {
+                    family: 'Courier New, monospace',
+                    size: 18,
+                    color: '#7f7f7f'
+                    }
+                },
+                yaxis: {
+                    title: 'Power Spectral Density',
+                    titlefont: {
+                    family: 'Courier New, monospace',
+                    size: 18,
+                    color: '#7f7f7f'
+                    }
+                }
+                
+                });
+        };
+        makeplot();
+    
+    
     </script>
     <p></p>
 
@@ -64,7 +126,7 @@
                 <tr>
                 <th scope="row">{{row[4]}}</th>
                 <td>{{row[2]}}</td>
-                <td>{{row[0]+row[7]}}</td>
+                <td>{{row[7]}}</td>
                 <td>{{row[1]}}</td>
                 <td>{{row[5]}}</td>
                 <td>{{row[3]}}</td>
