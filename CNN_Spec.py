@@ -34,8 +34,8 @@ conv_depth_1 = 32 # we will initially have 32 kernels per conv. layer...
 conv_depth_2 = 64 # ...switching to 64 after the first pooling layer
 drop_prob_1 = 0.25 # dropout after pooling with probability 0.25
 drop_prob_2 = 0.25 # dropout in the FC layer with probability 0.5
-hidden_size_1 = 512# the FC layer will have 512 neurons
-hidden_size_2 = 512
+hidden_size_1 = 128# the FC layer will have 512 neurons
+hidden_size_2 = 128
 earlystop_p = 5
 
 #(X_train, y_train), (X_test, y_test) = cifar10.load_data() # fetch CIFAR-10 data
@@ -96,7 +96,7 @@ model_final.summary()
 
 ########################
 model_final.compile(loss='categorical_crossentropy', # using the cross-entropy loss function
-              optimizer=Adamax(), # using the RMS optimiser
+              optimizer=RMSprop(), # using the RMS optimiser
               metrics=['accuracy']) # reporting the accuracy
 
 model_final.fit(X_train, 
@@ -125,8 +125,8 @@ print("Saved model to disk")
 
 
 from sklearn.metrics import confusion_matrix
-y_predict = model_final.predict(X_test)
-conf_matx = confusion_matrix(y_test.argmax(axis=1), y_predict.argmax(axis=1))
+Y_predict = model_final.predict(X_test)
+conf_matx = confusion_matrix(Y_test.argmax(axis=1), Y_predict.argmax(axis=1))
 print(conf_matx)
 
 
