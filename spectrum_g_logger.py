@@ -26,7 +26,7 @@ print("Connected!\n")
 while True:
     input_packet = socket_rx.recv_pyobj()
     cur.execute("TRUNCATE signal_store.signal_live_global")
-    cur.execute("INSERT INTO signal_store.signal_live_global (recent_psd) VALUES (%s)", (input_packet['recent_psd'],)) ### Remember comma!
+    cur.execute("INSERT INTO signal_store.signal_live_global (recent_psd, cf, fs, buf_len, resampling_ratio) VALUES (%s, %s, %s, %s, %s)", (input_packet['recent_psd'],input_packet['cf'],input_packet['fs'],input_packet['buf_len'],input_packet['resampling_ratio'],)) ### Remember comma!
     conn.commit()
 
 cur.close()
