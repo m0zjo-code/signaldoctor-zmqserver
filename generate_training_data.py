@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 ## Takes training IQ data and generates training features
 
 SPEC_SIZE = 256 ## NxN input tensor size
-input_folder = "/home/jonathan/HF_Dataset"
+input_folder = "/home/jonathan/fldigi_dataset"
 
 def load_npz(filename):
     data = np.load(filename)
