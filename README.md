@@ -70,12 +70,12 @@ This module takes wideband IQ data from GNURadio over the network and provides t
 
 Processing pre-recorded IQ data from a .wav file:
 ```sh
-python3 spectrum_processor.py -c /the/config.cfg -i /your/file.wav
+python3 spectrum_processor.py -i /your/file.wav
 ```
 
 Processing live IQ data from GNURadio:  %%%TBC%%%
 ```sh
-python3 spectrum_processor.py -c /the/config.cfg -i 127.0.0.1:3343 
+python3 spectrum_processor.py -i 127.0.0.1:3343 
 ```
 
 A config file "spectrum_processor.cfg" (default name) controls the main operation parameters.
@@ -88,7 +88,7 @@ The following functions are implemented:
 - The predicted signal class, bandwith, location and other misc details are transmitted over the network
 
 ```sh 
-python3 spectrum_classifier.py -c /the/config.cfg -i 127.0.0.1:3243
+python3 spectrum_classifier.py -i 127.0.0.1:3243
 ```
 
 A config file "spectrum_classifier.cfg" (default name) controls the main operation parameters.
