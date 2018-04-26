@@ -167,7 +167,7 @@ def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=N
     This function generates the features and acts as an entry point into the processing framework
     The features are generated, logged (if required) and then published to the next block
     """
-    extracted_iq_dict = process_buffer(buffer_data, fs, tx_socket = pubsocket[1])
+    extracted_iq_dict = process_buffer(buffer_data, fs, tx_socket = pubsocket[1], metadata=metadata)
 
     # We now have the features and iq data
     if LOG_IQ:
@@ -240,7 +240,7 @@ def ifft_wrap(iq_buffer, mode = 'pyfftw'):
         return ifft(iq_buffer)
     
 
-def process_buffer(buffer_in, fs=1, tx_socket=None):
+def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None):
     """
     Analyse input buffer, extract signals and pass onto the classifiers
     """
@@ -308,11 +308,15 @@ def process_buffer(buffer_in, fs=1, tx_socket=None):
         feature_dict = generate_features(local_fs, buf, plot_features=plot_features)
         feature_dict['local_fs'] = local_fs
         feature_dict['iq_data'] = buf
-        feature_dict['offset'] = (fs * (i[1]-buffer_len/2)/buffer_len)
+        feature_dict['offset'] = (fs * (i[1]-buffer_len/2)/buffer_len) + metadata['cf']
         output_signal_data.append(feature_dict)
     
     globaltx_dict = {}
     globaltx_dict['recent_psd'] = buffer_log2abs.tolist()
+    globaltx_dict['cf'] = metadata['cf']
+    globaltx_dict['fs'] = fs
+    globaltx_dict['buf_len'] = buffer_len
+    globaltx_dict['resampling_ratio'] = resample_ratio
     
     tx_socket.send_pyobj(globaltx_dict) ## Send global psd
     
