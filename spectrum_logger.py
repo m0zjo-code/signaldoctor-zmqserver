@@ -36,7 +36,7 @@ while True:
         cur.execute("INSERT INTO signal_store.signal_live (id, freq, class1, class2, timestamp, radioid, freq_offset) VALUES (%s, %s, %s, %s, %s, %s, %s)", (id_generator(size=24), cf, input_packet['pred1'], input_packet['pred2'], input_packet['timestamp'], radiotype, input_packet['offset']))
         conn.commit()
     except psycopg2.ProgrammingError:
-        cur.execute("INSERT INTO signal_store.signal_live (id, class1, class2, timestamp, freq_offset) VALUES (%s, %s, %s, %s, %s, %s)", (id_generator(size=12), input_packet['pred1'], input_packet['pred2'], input_packet['timestamp'], input_packet['offset']))
+        cur.execute("INSERT INTO signal_store.signal_live (id, class1, class2, timestamp, freq_offset) VALUES (%s, %s, %s, %s, %s, %s)", (id_generator(size=6), input_packet['pred1'], input_packet['pred2'], input_packet['timestamp'], input_packet['offset']))
         conn.commit()
 
 
