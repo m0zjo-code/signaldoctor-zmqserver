@@ -17,13 +17,9 @@ from numpy.fft import fftshift
 
 from detect_peaks import detect_peaks
 
-from keras.models import model_from_json
-import tensorflow as tf
-
-
 ## FFT Config
 import pyfftw
-from scipy.fftpack import fft, ifft
+from scipy.fftpack import fft, ifft, fftn
 
 ## SETUP
 import os.path
@@ -35,16 +31,15 @@ import matplotlib.pyplot as plt
 ## TODO ADD TO CFG FILE/CMD LINE OPTIONS
 energy_threshold = -5
 peak_threshold = 0.005
+peak_threshold = 1
 
 #fs = 2e6
 #fs = 8000
 MaxFFTN = 22
-wisdom_file = "fftw_wisdom.wiz"
 iq_buffer_len = 2000 ##ms
 OSR = 1.5
-MODEL_NAME = ["specmodel", "psdmodel"]
 plot_features = False
-plot_peaks = True
+plot_peaks = False
 #IQ_FS_OVERRIDE = True
 #IQ_FS = fs
 smooth_no = 1
@@ -63,7 +58,7 @@ BW_CALC_VAR = 4
 ## Logging
 LOG_IQ = True
 LOG_SPEC = True
-LOG_MODE = 'mat'
+LOG_MODE = 'npz'
 
 ## Debug BW Override
 BW_OVERRIDE = False
@@ -79,29 +74,6 @@ def npmax(l):
     max_val = l[max_idx]
     return (max_idx, max_val)
 
-
-def get_spec_model(modelname):
-    """ 
-    Load models from file 
-    Returns model and indexes 
-    """
-    loaded_model = []
-    for i in MODEL_NAME:
-        json_file = open('%s.nn'%(i), 'r')
-        loaded_model_json = json_file.read()
-        json_file.close()
-        loaded_model.append(model_from_json(loaded_model_json))
-        # load weights into new model
-        loaded_model[-1].load_weights("%s.h5"%(i))
-        print("Loaded model from disk")
-    ## https://stackoverflow.com/questions/6740918/creating-a-dictionary-from-a-csv-file
-    with open('spec_data_index.csv', mode='r') as ifile:
-        reader = csv.reader(ifile)
-        d = {}
-        for row in reader:
-            k, v = row
-            d[int(v)] = k
-    return loaded_model, d
 
 def save_IQ_buffer(channel_dict, output_format = 'npy', output_folder = 'logs/'):
     """
@@ -166,7 +138,7 @@ def power_bit_length(x):
     x = int(x)
     return 2**((x-1).bit_length()-1)
 
-def process_iq_file(filename, LOG_IQ, pubsocket=None):
+def process_iq_file(filename, LOG_IQ, pubsocket=None, metadata=None):
 
     #loaded_model, index_dict = get_spec_model(MODEL_NAME)
 
@@ -187,33 +159,36 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None):
         ## Read IQ data into memory
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         print("IQ Len: ", len(in_frame))
-        classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket)
+        classify_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket, metadata=metadata)
 
 
-def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None):
+def classify_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=None):
     """
     This function generates the features and acts as an entry point into the processing framework
     The features are generated, logged (if required) and then published to the next block
     """
-    extracted_iq = process_buffer(buffer_data, fs)
+    extracted_iq_dict = process_buffer(buffer_data, fs, tx_socket = pubsocket[1], metadata=metadata)
 
     # We now have the features and iq data
     if LOG_IQ:
         print("Logging.....")
-        for iq_channel in extracted_iq:
+        for iq_channel in extracted_iq_dict:
             save_IQ_buffer(iq_channel, output_format=LOG_MODE)
-    send_features(extracted_iq, pubsocket)
+    send_features(extracted_iq_dict, pubsocket[0], metadata=metadata)
     
-def send_features(extracted_features, pubsocket):
+def send_features(extracted_features, pubsocket, metadata=None):
     """
     Publish the feature arrays over the network
     The ZMQ socket is passed from the calling function
     """
-    print(pubsocket)
-    for data in extracted_features:
-        data = np.asarray(data)
-        pubsocket.send_pyobj(data)
+    for feature_dict in extracted_features:
+        #data = np.asarray(data)
+        feature_dict['iq_data'] = np.asarray(feature_dict['iq_data'])
+        feature_dict['metadata'] = metadata
+        pubsocket.send_pyobj(feature_dict)
         #print(data)
+
+
 
 def classify_spectrogram(input_array, model, index):
     """
@@ -265,7 +240,7 @@ def ifft_wrap(iq_buffer, mode = 'pyfftw'):
         return ifft(iq_buffer)
     
 
-def process_buffer(buffer_in, fs=1):
+def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None):
     """
     Analyse input buffer, extract signals and pass onto the classifiers
     """
@@ -320,21 +295,32 @@ def process_buffer(buffer_in, fs=1):
             continue
         #Compute IFFT and add to list
         td_channel = ifft_wrap(output_signal_fft, mode = 'scipy')
-        output_signals.append(td_channel)
+        output_signals.append([td_channel, peak_i*resample_ratio])
     
     
     print("We have %i signals!" % (len(output_signals)))
     
     ## Generate Features ##
-    output_iq = []
+    output_signal_data = []
     for i in output_signals:
-        local_fs = fs * len(i)/buffer_len
-        feature_dict = generate_features(local_fs, i, plot_features=plot_features)
+        buf = i[0]
+        local_fs = fs * len(buf)/buffer_len
+        feature_dict = generate_features(local_fs, buf, plot_features=plot_features)
         feature_dict['local_fs'] = local_fs
-        feature_dict['iq_data'] = i
-        output_iq.append(feature_dict)
+        feature_dict['iq_data'] = buf
+        feature_dict['offset'] = (fs * (i[1]-buffer_len/2)/buffer_len) + metadata['cf']
+        output_signal_data.append(feature_dict)
     
-    return output_iq
+    globaltx_dict = {}
+    globaltx_dict['recent_psd'] = buffer_log2abs.tolist()
+    globaltx_dict['cf'] = metadata['cf']
+    globaltx_dict['fs'] = fs
+    globaltx_dict['buf_len'] = buffer_len
+    globaltx_dict['resampling_ratio'] = resample_ratio
+    
+    tx_socket.send_pyobj(globaltx_dict) ## Send global psd
+    
+    return output_signal_data
 
 def log_enhance(input_array, order=1):
     input_array_tmp = input_array
@@ -375,6 +361,9 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
         Zxx_cmplx = np.roll(Zxx_cmplx, int(len(f)/2), axis=0)
 
     Zxx_mag = np.abs(np.power(Zxx_cmplx, 2))
+    
+    Zxx_mag_fft = np.abs(fftn(Zxx_mag))
+    Zxx_mag_fft = np.fft.fftshift(Zxx_mag_fft)
     Zxx_mag_log = log_enhance(Zxx_mag, order=2)
     
     diff_array0 = np.diff(Zxx_mag_log, axis=0)
@@ -403,59 +392,74 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     Min_Spectrum = np.min(Zxx_mag_rs, axis=1)
     Max_Spectrum = np.max(Zxx_mag_rs, axis=1)
     
+    Zxx_mag_hilb = np.abs(signal.hilbert(Zxx_mag.astype(np.float), axis=1))
     
     if plot_features:
-        plt.subplot(3, 3, 1)
+        nx = 3
+        ny = 4
+        plt.subplot(nx, ny, 1)
         plt.title("Magnitude Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(Zxx_mag_rs) ## +1 to stop 0s
         
-        plt.subplot(3, 3, 2)
+        plt.subplot(nx, ny, 2)
         plt.title("Max Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Max_Spectrum)
         
-        plt.subplot(3, 3, 3)
+        plt.subplot(nx, ny, 3)
         plt.title("PSD")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(PSD)
         
-        plt.subplot(3, 3, 4)
+        plt.subplot(nx, ny, 4)
         plt.title("Autoorrelation Coefficient (Magnitude)")
         plt.pcolormesh(Zxx_cec_rs)
         
-        plt.subplot(3, 3, 5)
+        plt.subplot(nx, ny, 5)
         plt.title("Frequency Diff Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(diff_array0)
         
-        plt.subplot(3, 3, 6)
+        plt.subplot(nx, ny, 6)
         plt.title("Time Diff Spectrum")
         plt.xlabel("Time")
         plt.ylabel("Frequency")
         plt.pcolormesh(diff_array1)
         
-        plt.subplot(3, 3, 7)
+        plt.subplot(nx, ny, 7)
         plt.title("Varience Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Varience_Spectrum)
         
-        plt.subplot(3, 3, 8)
+        plt.subplot(nx, ny, 8)
         plt.title("Differential Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Differential_Spectrum)
         
-        plt.subplot(3, 3, 9)
+        plt.subplot(nx, ny, 9)
         plt.title("Min Spectrum")
         plt.xlabel("Frequency")
         plt.ylabel("Power")
         plt.plot(Min_Spectrum)
+        
+        plt.subplot(nx, ny, 10)
+        plt.title("FT Spectrum")
+        plt.xlabel(" ")
+        plt.ylabel(" ")
+        plt.pcolormesh(Zxx_mag_fft)
+        
+        plt.subplot(nx, ny, 11)
+        plt.title("Hilbert Spectrum")
+        plt.xlabel(" ")
+        plt.ylabel(" ")
+        plt.pcolormesh(Zxx_mag_hilb)
         
         mng = plt.get_current_fig_manager() ## Make full screen
         mng.full_screen_toggle()
@@ -472,6 +476,8 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     output_dict['differentialspectrum_time'] = diff_array1_rs
     output_dict['min_spectrum'] = Min_Spectrum
     output_dict['max_spectrum'] = Max_Spectrum
+    output_dict['fft_spectrum'] = normalise_spectrogram(Zxx_mag_fft, spec_size, spec_size)
+    output_dict['hilb_spectrum'] = normalise_spectrogram(Zxx_mag_hilb, spec_size, spec_size)
 
     return output_dict
 

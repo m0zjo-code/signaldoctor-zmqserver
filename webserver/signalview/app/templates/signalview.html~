@@ -1,0 +1,45 @@
+<html>
+
+
+<head>
+        {% if title %}
+        <title>{{ title }} - Microblog</title>
+        {% else %}
+        <title>Welcome to Microblog!</title>
+        {% endif %}
+    </head>
+    <body>
+
+<h1 style="text-align: center;"><strong>SignalView 0.0.1</strong></h1>
+<table style="width: 100%; border-collapse: collapse; margin-left: auto; margin-right: auto;" border="1">
+<tbody>
+<tr style="height: 21px;">
+<td style="width: 25%; height: 21px;">Reception Time</td>
+<td style="width: 25%; height: 21px;">Class</td>
+<td style="width: 25%; height: 21px;">Center Frequency</td>
+<td style="width: 25%; height: 21px;">Radio ID</td>
+</tr>
+<tr style="height: 21px;">
+<td style="width: 25%; height: 21px;">14:38:01T24/04/2018</td>
+<td style="width: 25%; height: 21px;">SSB</td>
+<td style="width: 25%; height: 21px;">14.198232 MHz</td>
+<td style="width: 25%; height: 21px;">HackRF 1</td>
+</tr>
+<tr style="height: 21px;">
+<td style="width: 25%; height: 21px;">14:42:37T24/04/2018</td>
+<td style="width: 25%; height: 21px;">CW</td>
+<td style="width: 25%; height: 21px;">14.001232 MHz</td>
+<td style="width: 25%; height: 21px;">HackRF 1</td>
+</tr>
+<tr style="height: 21px;">
+<td style="width: 25%; height: 21px;">14:44:24T24/04/2018</td>
+<td style="width: 25%; height: 21px;">FSK</td>
+<td style="width: 25%; height: 21px;">14.071878 MHz</td>
+<td style="width: 25%; height: 21px;">HackRF 1</td>
+</tr>
+</tbody>
+</table>
+<p></p>
+<p>Debug info: 127.0.0.1:5555</p>
+</body>
+</html>
