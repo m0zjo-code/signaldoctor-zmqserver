@@ -71,6 +71,7 @@ def main(args):
             string = socket.recv()
             buffer_data = np.fromstring(string, dtype = 'complex64')
             sdl.classify_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata)
+    print("No arguments supplied - exiting. For help please run with -h flag")
     
     
 
