@@ -1,0 +1,5 @@
+nnetsetup/specdata/FSK.npy,0
+nnetsetup/specdata/SSB.npy,1
+nnetsetup/specdata/CARRIER.npy,2
+nnetsetup/specdata/AM.npy,3
+nnetsetup/specdata/CW.npy,4

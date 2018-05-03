@@ -27,7 +27,7 @@ from keras.callbacks import TensorBoard
 from time import time
 
 batch_size = 16 # in each iteration, we consider 32 training examples at once
-num_epochs = 1 # we iterate 2000 times over the entire training set
+num_epochs = 1000 # we iterate 2000 times over the entire training set
 kernel_size = 3 # we will use 3x3 kernels throughout
 pool_size = 2 # we will use 2x2 pooling throughout
 conv_depth_1 = 32 # we will initially have 32 kernels per conv. layer...
@@ -49,8 +49,11 @@ y_test = input_data['y_test']
 from sklearn.utils import shuffle
 X_train, y_train = shuffle(X_train, y_train, random_state=0)
 
-
-num_train, width, depth = X_train.shape # there are 50000 training examples in CIFAR-10
+try:
+    num_train, width, depth = X_train.shape # there are 50000 training examples in CIFAR-10
+except ValueError:
+    num_train, width = X_train.shape
+    depth = 1
 num_test = X_test.shape[0] # there are 10000 test examples in CIFAR-10
 num_classes = np.unique(y_train).shape[0] # there are 10 image classes
 
@@ -61,6 +64,19 @@ X_test /= np.max(X_test) # Normalise data to [0, 1] range
 
 Y_train = np_utils.to_categorical(y_train, num_classes) # One-hot encode the labels
 Y_test = np_utils.to_categorical(y_test, num_classes) # One-hot encode the labels
+
+
+X_train_tmp = np.zeros((X_train.shape[0], X_train.shape[1], depth))
+for i in range(0, len(X_train)):
+    for j in range(0, depth):
+        X_train_tmp[i,:,j] = X_train[i, :]
+X_train = X_train_tmp
+
+X_test_tmp = np.zeros((X_test.shape[0], X_test.shape[1], depth))
+for i in range(0, len(X_test)):
+    for j in range(0, depth):
+        X_test_tmp[i,:,j] = X_test[i, :]
+X_test = X_test_tmp
 
 
 ### Set up CNN model ##
