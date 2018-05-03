@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 SPEC_SIZE = 256 ## NxN input tensor size
 
-input_folder = "/home/jonathan/HF_Dataset"
+#input_folder = "/home/jonathan/HF_Dataset"
 input_folder = "/mnt/datastore/FYP/training_sets/HF_SetV3"
 
 def load_npz(filename):
@@ -37,7 +37,7 @@ def feature_gen(file_list, spec_size):
         #print(feature_dict['differentialspectrum_freq'].shape)
         #print(feature_dict['differentialspectrum_time'].shape)
         
-        tmp_spec = np.stack((feature_dict['magnitude'], feature_dict['phase'], feature_dict['corrcoef'], feature_dict['differentialspectrum_freq'], feature_dict['differentialspectrum_time']), axis=-1)
+        #tmp_spec = np.stack((feature_dict['magnitude'], feature_dict['phase'], feature_dict['corrcoef'], feature_dict['differentialspectrum_freq'], feature_dict['differentialspectrum_time']), axis=-1)
         output_list_spec.append(feature_dict['magnitude'])
         
         #print(feature_dict['psd'].shape)
@@ -46,7 +46,7 @@ def feature_gen(file_list, spec_size):
         #print(feature_dict['min_spectrum'].shape)
         #print(feature_dict['min_spectrum'].shape)
         
-        tmp_psd = np.stack((feature_dict['psd'], feature_dict['variencespectrum'], feature_dict['differentialspectrumdensity'], feature_dict['min_spectrum'], feature_dict['min_spectrum']), axis=-1)
+        #tmp_psd = np.stack((feature_dict['psd'], feature_dict['variencespectrum'], feature_dict['differentialspectrumdensity'], feature_dict['min_spectrum'], feature_dict['min_spectrum']), axis=-1)
         output_list_psd.append(feature_dict['psd'])
 
         #plt.pcolormesh(Zxx_dat)

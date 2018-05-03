@@ -50,7 +50,7 @@ X_train, y_train = shuffle(X_train, y_train, random_state=0)
 
 
 num_train, height, width = X_train.shape # there are 50000 training examples in CIFAR-10
-depth = 3
+depth = 1
 num_test = X_test.shape[0] # there are 10000 test examples in CIFAR-10
 num_classes = np.unique(y_train).shape[0] # there are 10 image classes
 
@@ -62,15 +62,15 @@ X_test /= np.max(X_test) # Normalise data to [0, 1] range
 Y_train = np_utils.to_categorical(y_train, num_classes) # One-hot encode the labels
 Y_test = np_utils.to_categorical(y_test, num_classes) # One-hot encode the labels
 
-X_train_tmp = np.zeros((X_train.shape[0], X_train.shape[1], X_train.shape[2], 3))
+X_train_tmp = np.zeros((X_train.shape[0], X_train.shape[1], X_train.shape[2], depth))
 for i in range(0, len(X_train)):
-    for j in range(0, 3):
+    for j in range(0, depth):
         X_train_tmp[i,:,:,j] = X_train[i, :, :]
 X_train = X_train_tmp
 
-X_test_tmp = np.zeros((X_test.shape[0], X_test.shape[1], X_test.shape[2], 3))
+X_test_tmp = np.zeros((X_test.shape[0], X_test.shape[1], X_test.shape[2], depth))
 for i in range(0, len(X_test)):
-    for j in range(0, 3):
+    for j in range(0, depth):
         X_test_tmp[i,:,:,j] = X_test[i, :, :]
 X_test = X_test_tmp
 
@@ -127,7 +127,7 @@ elif USE_PRE_TRAINED_NETWORK:
 
 
 
-earlystop = keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.001, patience=50, verbose=1, mode='auto')
+earlystop = keras.callbacks.EarlyStopping(monitor='val_acc', min_delta=0.001, patience=10, verbose=1, mode='auto')
 callbacks_list = [earlystop]
 
 
