@@ -31,6 +31,12 @@
     
     
     
+    <p></p>
+    
+    <form action="/">
+        <input type="submit" value="Home" />
+    </form>
+    
     <input type="button" value="Refresh Page" onClick="window.location.reload()">
 
 
@@ -79,7 +85,7 @@
 
             Plotly.newPlot('myDiv', traces, 
                 {
-                title: 'Live PSD View',
+                title: 'Live Spectrum View',
                 "titlefont": {
                     "size": 36,
                 },
@@ -119,6 +125,7 @@
                 <th scope="col">Predict 1</th>
                 <th scope="col">Predict 2</th>
                 <th scope="col">RF ID</th>
+                <th scope="col">View</th>
                 </tr>
             </thead>
             
@@ -130,6 +137,9 @@
                 <td>{{row[1]}}</td>
                 <td>{{row[5]}}</td>
                 <td>{{row[3]}}</td>
+                <td>
+                    <a href="/inspect?id={{row[4]}}">View</a>
+                </td>
                 </tr>
             {% endfor %}
             <tbody>

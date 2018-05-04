@@ -1,8 +1,12 @@
 from app import app
 from flask import render_template, request
-import psycopg2, json, os, csv
+import psycopg2, json_tricks, os, csv
+import numpy as np
 
 
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 @app.route('/', methods=['GET', 'POST'])
 @app.route('/index', methods=['GET', 'POST'])
@@ -34,6 +38,43 @@ def graph():
     g_dat = cur.fetchall()
     
     return render_template('graph.html', title='SignalView', user=user, sig_data=sig_data, psd=extract_psd(g_dat, sig_data), labels=generate_labels(g_dat, sig_data))
+
+
+@app.route('/inspect')
+def inspect():
+    id_s = request.args.get('id')
+    print("Recieved request for: %s" % id_s)
+    user = {'username': 'Jonathan'}
+    conn_string = "host='localhost' dbname='signals' user='postgres' password='secret'"
+    print("Connecting to database\n -->> %s" % (conn_string))
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("SELECT * from signal_store.signal_live_global")
+    g_dat = cur.fetchall()
+    
+    cur.execute("SELECT * from signal_store.signal_live WHERE id = '%s'" % id_s)
+    sig_data = cur.fetchall()
+    
+    sig_data_d = {}
+    sig_data_d['frequency'] = sig_data[0][0]
+    sig_data_d['class1'] = sig_data[0][1]
+    sig_data_d['ts'] = sig_data[0][2]
+    sig_data_d['hw_id'] = sig_data[0][3]
+    sig_data_d['sig_id'] = sig_data[0][4]
+    sig_data_d['class2'] = sig_data[0][5]
+    sig_data_d['spec_data'] = json_tricks.loads(sig_data[0][6])
+    sig_data_d['cf'] = sig_data[0][7]
+    
+    sig_data_d['spec_data'] = np.asarray(sig_data_d['spec_data'])
+    
+    fig = plt.figure()
+    plt.pcolormesh(sig_data_d['spec_data'])
+    plt.savefig('app/static/spec.png')
+    plt.close(fig)
+    
+    return render_template('inspect.html', sig_data=sig_data)
+
+
 
 def extract_psd(g_dat, sig_data):
     print(len(g_dat))

@@ -1,0 +1,78 @@
+<html>
+<head>
+
+    <title>##SignalViewV0.0.1##</title>
+
+    <meta http-equiv="refresh" content="300" >
+
+
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <script src="/static/js/jquery-latest.js"></script>
+    <script src="/static/js/bootstrap.min.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Plotly.js -->
+   <script src="/static/js/plotly-latest.min.js"></script>
+    
+</head>
+
+
+<body>
+    <script>
+        let d = new Date();
+        document.body.innerHTML = "Last refresh time: " + d
+    </script>
+
+    <h1 style="text-align: center;"><strong>SignalView V0.0.1 - Inspector</strong></h1>
+    <img src="/static/logo.png">
+    
+    
+<!--     <p>Debug info: 127.0.0.1:5555</p> -->
+    
+    
+    
+    <p></p>
+    
+    <form action="/">
+        <input type="submit" value="Home" />
+    </form>
+    
+    <form action="/graph">
+        <input type="submit" value="Back" />
+    </form>
+    
+    <input type="button" value="Refresh Page" onClick="window.location.reload()">
+
+
+    <p></p>
+    
+    <div class="container-fluid">
+        <table class="table table-sm">
+            <thead class="thead-dark">
+                <tr>
+                <th scope="col">#</th>
+                <th scope="col">Timestamp</th>
+                <th scope="col">Center Frequency</th>
+                <th scope="col">Predict 1</th>
+                <th scope="col">Predict 2</th>
+                <th scope="col">RF ID</th>
+                </tr>
+            </thead>
+            
+            {% for row in sig_data %}
+                <tr>
+                <th scope="row">{{row[4]}}</th>
+                <td>{{row[2]}}</td>
+                <td>{{row[7]}}</td>
+                <td>{{row[1]}}</td>
+                <td>{{row[5]}}</td>
+                <td>{{row[3]}}</td>
+                </tr>
+            {% endfor %}
+            <tbody>
+            </tbody>
+        </table>  
+    </div>
+    <img src="/static/spec.png?{{sig_data[0][4]}}" alt="If you can see me, something has broken">
+</body>
+</html>
