@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 SPEC_SIZE = 256 ## NxN input tensor size
 
 #input_folder = "/home/jonathan/HF_Dataset"
-input_folder = "/mnt/datastore/FYP/training_sets/HF_SetV3"
+input_folder = "/home/jonathan/HF_Dataset"
 
 def load_npz(filename):
     data = np.load(filename)
