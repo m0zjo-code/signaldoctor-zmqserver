@@ -52,7 +52,7 @@ def main(args):
         socket = context.socket(zmq.SUB)
         print("Collecting updates from IQ server...")
         socket.connect ("tcp://127.0.0.1:%i" % port)
-        socket.setsockopt_string(zmq.SUBSCRIBE, ""))
+        socket.setsockopt_string(zmq.SUBSCRIBE, "")
         
         # Keep recieving data and processing
         while True:
