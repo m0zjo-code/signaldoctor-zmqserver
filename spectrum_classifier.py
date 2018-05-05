@@ -1,14 +1,27 @@
-import zmq, argparse
-import numpy as np
-import signaldoctorlib as sdl
-import signaldoctorlib_class as sdlc
-import sqlite3
+"""
+Jonathan Rawlinson - 2018
+Imperial College EEE Department
+Spectrum Classifier (from ZMQ PUB) for RF Signal Classification Project
+"""
+# Import std python modules
+import argparse
 import time, datetime
+
+# Import 3rd party modules
+import zmq
+import numpy as np
+
+# Import my modules
+import signaldoctorlib as sdl
+import signaldoctorlib_class as sdlc #Seperate lib so that the processor doesn't need keras
 
 plot_features = False
 
 def main(args):
+    
+    # If default settings
     if args.d:
+        # Load models
         model1_name = 'nnet_models/psdmodel'
         index1_name = 'nnet_models/psd_data_index'
         model1, index1 = sdlc.get_spec_model(model1_name, index1_name)
@@ -16,8 +29,6 @@ def main(args):
         model2_name = 'nnet_models/specmodel'
         index2_name = 'nnet_models/spec_data_index'
         model2, index2 = sdlc.get_spec_model(model2_name, index2_name)
-
-
 
         # Socket to talk to IQ server
         port_rx = 5556
@@ -33,19 +44,26 @@ def main(args):
         socket_tx = context_tx.socket(zmq.PUB)
         socket_tx.bind('tcp://127.0.0.1:%i' % port_tx)
 
-
         i = 0
         while True:
+            # Get classification packet
             input_packet = socket_rx.recv_pyobj()
             print("## Packet No.",i)
-            i = i + 1
+            i = i + 1 # Packet no for debugging
+            
+            # Generate features
             feature_dict = sdl.generate_features(input_packet['local_fs'], input_packet['iq_data'], plot_features=plot_features)
+            
+            ### If we want more classifiers - we add more here ###
+            # Classify from network 1
             class_output1 = sdlc.classify_buffer1d(feature_dict, model1)
             print("PSD Prediction  -->> %s"%index1[class_output1])
+            
+            # Classify from network 2 
             class_output2 = sdlc.classify_buffer2d(feature_dict, model2, spec_size = 256)
             print("Spec Prediction -->> %s"%index1[class_output1])
             
-            #output_dict = {}
+            # Setup output packet
             feature_dict['pred1'] = index1[class_output1]
             feature_dict['pred2'] = index2[class_output2]
             feature_dict['metadata'] = input_packet['metadata']
@@ -53,6 +71,8 @@ def main(args):
             ts = time.time()
             feature_dict['timestamp'] = datetime.datetime.fromtimestamp(ts).strftime('%Y-%m-%dT%H:%M:%S.%f')
             print(feature_dict['metadata'])
+            
+            # Send dict
             socket_tx.send_pyobj(feature_dict)
     
     print("No arguments supplied - exiting. For help please run with -h flag")

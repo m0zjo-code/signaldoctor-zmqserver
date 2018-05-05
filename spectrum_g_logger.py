@@ -1,9 +1,13 @@
+"""
+Jonathan Rawlinson 2018
+Imperial College EEE Department
+Signal scenario logger utility for the RF signal classification project
+"""
+
 import zmq
 import psycopg2
 import sys, json, argparse
 from signaldoctorlib import id_generator
-
-
 
 def main(args):
     if args.d:
