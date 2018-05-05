@@ -22,6 +22,11 @@ def main(args, config):
     
     # If default settings
     if args.d:
+        # Extract classifier sections in ini file
+        classifier_sections = [s for s in config.sections() if "CLASSIFIER" in s]
+        
+        #TODO - implement dynamic classifier loading
+        
         # Load models
         model1_name = 'nnet_models/psdmodel'
         index1_name = 'nnet_models/psd_data_index'
