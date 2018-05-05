@@ -6,6 +6,7 @@ Spectrum Classifier (from ZMQ PUB) for RF Signal Classification Project
 # Import std python modules
 import argparse
 import time, datetime
+import configparser
 
 # Import 3rd party modules
 import zmq
@@ -17,7 +18,7 @@ import signaldoctorlib_class as sdlc #Seperate lib so that the processor doesn't
 
 plot_features = False
 
-def main(args):
+def main(args, config):
     
     # If default settings
     if args.d:
@@ -52,7 +53,7 @@ def main(args):
             i = i + 1 # Packet no for debugging
             
             # Generate features
-            feature_dict = sdl.generate_features(input_packet['local_fs'], input_packet['iq_data'], plot_features=plot_features)
+            feature_dict = sdl.generate_features(input_packet['local_fs'], input_packet['iq_data'], plot_features=plot_features, config=config)
             
             ### If we want more classifiers - we add more here ###
             # Classify from network 1
@@ -84,4 +85,7 @@ if __name__ == "__main__":
     parser.add_argument('-d', help='RX from spectrum processor with default settings (in->127.0.0.1:5556, out->127.0.0.1:5557)', action="store_true")
     
     args = parser.parse_args()
-    main(args)
+    
+    config = configparser.ConfigParser()
+    config.read('sdl_config.ini')
+    main(args, config)

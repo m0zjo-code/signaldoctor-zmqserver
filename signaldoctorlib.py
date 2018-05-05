@@ -31,37 +31,6 @@ import pyfftw
 # DEBUG
 import matplotlib.pyplot as plt
 
-## TODO ADD TO CFG FILE/CMD LINE OPTIONS
-energy_threshold = -5
-peak_threshold = 0.005
-peak_threshold = 1
-
-iq_buffer_len = 2000 ##ms
-OSR = 1.5
-plot_features = False
-plot_peaks = False
-smooth_no = 1
-
-## Spectrogram Calculation Ratio
-spectrogram_size = 256
-SPEC_OVERLAP_RATIO = 2
-
-## Smoothing Parameters - for 1e6 Hz 
-resample_ratio = 256
-smooth_stride_hz = 5e3
-
-## Bandwidth Calculation Parameters
-BW_CALC_VAR = 4
-
-## Logging
-LOG_IQ = True
-LOG_SPEC = True
-LOG_MODE = 'npz'
-
-## Debug BW Override
-BW_OVERRIDE = False
-BW_OVERRIDE_VAL = 5000/resample_ratio ##Currently its the RS BW
-
 ## Help from -->> https://stackoverflow.com/questions/6193498/pythonic-way-to-find-maximum-value-and-its-index-in-a-list
 def npmax(l):
     """ 
@@ -71,7 +40,7 @@ def npmax(l):
     max_val = l[max_idx]
     return (max_idx, max_val)
 
-def save_IQ_buffer(channel_dict, output_format = 'npy', output_folder = 'logs/'):
+def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/', LOG_IQ = True, LOG_SPEC = True):
     """
     Write IQ data into npy file
     The MATLAB *.mat file can also be used
@@ -80,10 +49,12 @@ def save_IQ_buffer(channel_dict, output_format = 'npy', output_folder = 'logs/')
     filename = id_generator()
     # Save IQ 
     if LOG_IQ:
-        if (output_format == 'npy'):
+        if (output_format == 'npz'):
             np.savez(output_folder+filename+".npz",channel_iq=channel_dict['iq_data'], fs=channel_dict['local_fs'])
-        else:
+        elif (output_format == 'mat'):
             savemat(output_folder+filename+".mat", {'channel_iq':channel_dict['iq_data'], 'fs':channel_dict['local_fs']})
+        else:
+            print("Invalid Output Format Specified")
     # Save Spec
     if LOG_SPEC:
         imsave(output_folder+filename+".png", channel_dict['magnitude'])
@@ -138,7 +109,7 @@ def power_bit_length(x):
     x = int(x)
     return 2**((x-1).bit_length()-1)
 
-def process_iq_file(filename, LOG_IQ, pubsocket=None, metadata=None):
+def process_iq_file(filename, LOG_IQ, pubsocket=None, metadata=None, config=None):
     """
     Loads IQ data from a .WAV file from sdr# and classifies
     """
@@ -147,6 +118,7 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None, metadata=None):
     print("###Loaded IQ File###, Len: %i, Fs %i" % (file_len, fs))
 
     # Calculate buffer length
+    iq_buffer_len = float(config['DETECTION_OPTIONS']['iq_buffer_len'])
     length = (fs/1000)*iq_buffer_len
     length = power_bit_length(length)
     buf_no = int(np.floor(file_len/(length)))
@@ -159,19 +131,21 @@ def process_iq_file(filename, LOG_IQ, pubsocket=None, metadata=None):
         in_frame, fs = import_buffer(iq_file, fs, i*length, (i+1)*length)
         print("IQ Len: ", len(in_frame))
         # Run into the buffer analyser
-        analyse_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket, metadata=metadata)
+        analyse_buffer(in_frame, fs=fs, LOG_IQ=LOG_IQ,  pubsocket=pubsocket, metadata=metadata, config=config)
 
-def analyse_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=None):
+def analyse_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=None, config=None):
     """
     This function generates the features and acts as an entry point into the processing framework
     The features are generated, logged (if required) and then published to the next block
     """
-    extracted_iq_dict = process_buffer(buffer_data, fs, tx_socket = pubsocket[1], metadata=metadata)
+    extracted_iq_dict = process_buffer(buffer_data, fs, tx_socket = pubsocket[1], metadata=metadata, config=config)
     # We now have the features and iq data
+    LOG_MODE = config['DETECTION_OPTIONS']['LOG_MODE']
+    LOG_SPEC = config['DETECTION_OPTIONS'].getboolean('LOG_SPEC')
     if LOG_IQ:
         print("Logging.....")
         for iq_channel in extracted_iq_dict:
-            save_IQ_buffer(iq_channel, output_format=LOG_MODE)
+            save_IQ_buffer(iq_channel, output_format=LOG_MODE, LOG_IQ=LOG_IQ, LOG_SPEC=LOG_SPEC)
     send_features(extracted_iq_dict, pubsocket[0], metadata=metadata)
     
 def send_features(extracted_features, pubsocket, metadata=None):
@@ -233,7 +207,7 @@ def ifft_wrap(iq_buffer, mode = 'pyfftw'):
         return ifft(iq_buffer)
     
 
-def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None):
+def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
     """
     Analyse input buffer, extract signals and pass onto the classifiers
     """
@@ -253,12 +227,14 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None):
     buffer_energy = np.log10(buffer_abs.sum()/buffer_len)
 
     #If energy below threshold return nothing
+    energy_threshold = float(config['DETECTION_OPTIONS']['energy_threshold'])
     if (buffer_energy<energy_threshold):
         print("Below threshold - returning nothing")
         return None
     
     # Resample search buffer as not all data is required
     # Reshape buffer into
+    resample_ratio = int(config['DETECTION_OPTIONS']['resample_ratio'])
     buffer_abs = np.reshape(buffer_abs, (resample_ratio, int(len(buffer_abs)/resample_ratio)), order='F')
     # Take mean of reshaped buffer
     buffer_abs = np.mean(buffer_abs, axis=0)
@@ -267,30 +243,39 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None):
     #buffer_abs[buffer_abs == 0] = 0.01 #Remove all zeros
     
     # Compute the sample length of the smoothing function from the length specified in Hz
+    smooth_stride_hz = float(config['DETECTION_OPTIONS']['smooth_stride_hz'])
     smooth_stride = int((buffer_len*smooth_stride_hz)/(resample_ratio*fs))
     
     # The "Log enhance" function can be used here to reduce the large peaks and bring up the small ones to make easier peak finding.
-    buffer_log2abs = buffer_abs
+    # Uncomment for searching of log fft - the peak detector will need to be desensitiswd a tad (produces quite a noisy output!) 
+    # buffer_abs = log_enhance(buffer_abs)
+    smooth_no = int(config['DETECTION_OPTIONS']['smooth_no'])
     print("Smoothing, stride: %i Hz, No %i" % (int(smooth_stride*resample_ratio*fs/buffer_len), smooth_no))
     for i in range(0,smooth_no):
-        buffer_log2abs = smooth(buffer_log2abs, window_len=smooth_stride, window ='hanning')
+        buffer_abs = smooth(buffer_abs, window_len=smooth_stride, window ='hanning')
     
     # Normalise to zero mean, varience = 1
-    buffer_log2abs = zscore(buffer_log2abs)
+    buffer_abs = zscore(buffer_abs)
     
     # Could attempt detrending - was found to be counter productive 
-    # buffer_log2abs = signal.detrend(buffer_log2abs)
-    buffer_log2abs = buffer_log2abs - np.min(buffer_log2abs)
+    # buffer_abs = signal.detrend(buffer_abs)
+    buffer_abs = buffer_abs - np.min(buffer_abs)
     
     # Find peaks in data using the detect_peaks function
-    buffer_peakdata = detect_peaks(buffer_log2abs, mph=peak_threshold , mpd=2, edge='rising', show=plot_peaks)
+    peak_threshold = float(config['DETECTION_OPTIONS']['peak_threshold'])
+    plot_peaks = config['DETECTION_OPTIONS'].getboolean('plot_peaks')
+    buffer_peakdata = detect_peaks(buffer_abs, mph=peak_threshold , mpd=2, edge='rising', show=plot_peaks)
     
     #Search for signals of interest
+    OSR = float(config['DETECTION_OPTIONS']['osr'])
+    BW_CALC_VAR = float(config['DETECTION_OPTIONS']['BW_CALC_VAR'])
+    BW_OVERRIDE = config['DETECTION_OPTIONS'].getboolean('BW_OVERRIDE')
+    BW_OVERRIDE_VAL = float(config['DETECTION_OPTIONS']['BW_OVERRIDE_VAL'])
     output_signals = []
     for peak_i in buffer_peakdata:
         #Decimate the signal in the frequency domain
         #Please note that the OSR value is from the 3dB point of the signal - if there is a long roll off (spectrally) some of the signal may be cut
-        output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, resample_ratio, buffer_log2abs, peak_i, OSR)
+        output_signal_fft, bandwidth = fd_decimate(buffer_fft_rolled, resample_ratio, buffer_abs, peak_i, OSR, BW_CALC_VAR, BW_OVERRIDE, BW_OVERRIDE_VAL)
         #print("Bandwidth--->>>", bandwidth)
         buf_len = len(buffer_fft_rolled)
         if len(output_signal_fft) ==0:
@@ -310,7 +295,8 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None):
         local_fs = fs * len(buf)/buffer_len
         
         # Generated features (DEBUG)
-        feature_dict = generate_features(local_fs, buf, plot_features=plot_features)
+        plot_features = config['DETECTION_OPTIONS'].getboolean('plot_features')
+        feature_dict = generate_features(local_fs, buf, plot_features=plot_features, config=config)
         feature_dict['local_fs'] = local_fs
         feature_dict['iq_data'] = buf
         feature_dict['offset'] = (fs * (i[1]-buffer_len/2)/buffer_len) + metadata['cf']
@@ -318,7 +304,7 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None):
     
     # Prepare output dict
     globaltx_dict = {}
-    globaltx_dict['recent_psd'] = buffer_log2abs.tolist()
+    globaltx_dict['recent_psd'] = buffer_abs.tolist()
     globaltx_dict['cf'] = metadata['cf']
     globaltx_dict['fs'] = fs
     globaltx_dict['buf_len'] = buffer_len
@@ -356,7 +342,7 @@ def blockshaped(arr, nrows, ncols):
                .swapaxes(1,2)
                .reshape(-1, nrows, ncols))
 
-def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True, plot_features = False):
+def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot_features = False, config = None):
     """
     Generate classification features - used by many parts of the system
     """
@@ -365,6 +351,7 @@ def generate_features(local_fs, iq_data, spec_size=spectrogram_size, roll = True
     NFFT = math.pow(2, int(math.log(math.sqrt(len(iq_data)), 2) + 0.5)) #Arb constant... Need to analyse TODO
     
     # Compute STFT (Short Time Fourier Transform)
+    SPEC_OVERLAP_RATIO = float(config['DETECTION_OPTIONS']['SPEC_OVERLAP_RATIO'])
     f, t, Zxx_cmplx = signal.stft(iq_data, local_fs, noverlap=NFFT/SPEC_OVERLAP_RATIO, nperseg=NFFT, return_onesided=False)
     # Place 0Hz in middle
     f = fftshift(f)
@@ -552,7 +539,7 @@ def remove_DC(IQ_File):
     DC_Offset_Imag = np.mean(np.imag(IQ_File))
     return IQ_File - (DC_Offset_Real + DC_Offset_Imag * 1j)
 
-def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
+def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr, BW_CALC_VAR, BW_OVERRIDE, BW_OVERRIDE_VAL):
     """
     Decimate Buffer in Frequency domain to extract signal from 3db (adjustable) Bandwidth
     """
@@ -560,7 +547,7 @@ def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
     #TODO
     
     cf = peakinfo
-    bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo)
+    bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo, BW_CALC_VAR)
     if BW_OVERRIDE:
         bw = int(BW_OVERRIDE_VAL)
     slicer_lower = (cf-(bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no ##Offset fix? The offset is variable with changes to the smoothing filter - convolution shift?
@@ -570,12 +557,12 @@ def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr):
     output_fft = fft_data[int(slicer_lower):int(slicer_upper)]
     return output_fft, bw
 
-def find_3db_bw_JR_single_peak(data, peak):
+def find_3db_bw_JR_single_peak(data, peak, BW_CALC_VAR):
     """ 
     Find bandwidth of single peak 
     """
-    max_bw = find_3db_bw_max(data, peak)
-    min_bw = find_3db_bw_min(data, peak)
+    max_bw = find_3db_bw_max(data, peak, BW_CALC_VAR)
+    min_bw = find_3db_bw_min(data, peak, BW_CALC_VAR)
     bw1 = (max_bw - peak)*2
     bw2 = (peak - min_bw)*2
     bw = max(bw1, bw2)
@@ -583,7 +570,7 @@ def find_3db_bw_JR_single_peak(data, peak):
     return bw
 
 
-def find_3db_bw_max(data, peak, step=10):
+def find_3db_bw_max(data, peak, BW_CALC_VAR, step=10):
     """ 
     Find 3dB point going up the array 
     """
@@ -599,7 +586,7 @@ def find_3db_bw_max(data, peak, step=10):
         previous_value = data[i]
     return len(data)-1 ##Nothing found - should probably raise an error here. TODO check error
 
-def find_3db_bw_min(data, peak, step=10):
+def find_3db_bw_min(data, peak, BW_CALC_VAR, step=10):
     """ 
     Find 3dB point going down the array
     """

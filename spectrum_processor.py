@@ -14,9 +14,7 @@ pubport_global = 5558
 
 import signaldoctorlib as sdl
 import argparse
-
-LOG_IQ = True
-#MODEL_NAME = "specmodel"
+import configparser
 
 ## DEBUG
 import matplotlib.pyplot as plt
@@ -26,7 +24,7 @@ fs = 2.09715e6
 metadata = {'radio':'HackRF', 'cf':3.9e6}
 
 
-def main(args):
+def main(args, config):
     # Main function
     print("Running: ", sys.argv[0])
     
@@ -37,12 +35,12 @@ def main(args):
     pubcontext_global = zmq.Context()
     pubsocket_global = pubcontext_global.socket(zmq.PUB)
     pubsocket_global.bind('tcp://127.0.0.1:%i' % pubport_global)
-    
+    LOG_IQ = config['DETECTION_OPTIONS'].getboolean('LOG_IQ')
     # Checks to see if we are reading from a pre-recorded file
     if args.input_file != None:
         print("Reading local IQ")
         print("Input file: ", args.input_file)
-        sdl.process_iq_file(args.input_file, LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata)
+        sdl.process_iq_file(args.input_file, LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata, config=config)
         sys.exit()
     
     # Checks to see if we are using default settings
@@ -58,7 +56,7 @@ def main(args):
         while True:
             string = socket.recv()
             buffer_data = np.fromstring(string, dtype = 'complex64')
-            sdl.analyse_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata)
+            sdl.analyse_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata, config=config)
     
     # Custom settings - need to compleet full setup TODO
     if args.zmq_src != None:
@@ -73,7 +71,7 @@ def main(args):
         while True:
             string = socket.recv()
             buffer_data = np.fromstring(string, dtype = 'complex64')
-            sdl.analyse_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata)
+            sdl.analyse_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata, config=config)
     print("No arguments supplied - exiting. For help please run with -h flag")
     
 if __name__ == "__main__":
@@ -85,4 +83,6 @@ if __name__ == "__main__":
     parser.add_argument('-d', help='RX from GRX with default settings (127.0.0.1:5555)', action="store_true")
     
     args = parser.parse_args()
-    main(args)
+    config = configparser.ConfigParser()
+    config.read('sdl_config.ini')
+    main(args, config)
