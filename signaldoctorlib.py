@@ -539,25 +539,20 @@ def remove_DC(IQ_File):
     DC_Offset_Imag = np.mean(np.imag(IQ_File))
     return IQ_File - (DC_Offset_Real + DC_Offset_Imag * 1j)
 
-def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr, BW_CALC_VAR, BW_OVERRIDE, BW_OVERRIDE_VAL):
+def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, cf, osr, BW_CALC_VAR, BW_OVERRIDE, BW_OVERRIDE_VAL):
     """
     Decimate Buffer in Frequency domain to extract signal from 3db (adjustable) Bandwidth
     """
     #Calculate 3dB peak bandwidth
     #TODO
     
-    cf = peakinfo #Relative cf
-    bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo, BW_CALC_VAR)
+    bw, cf_corrected = find_3db_bw_JR_single_peak(fft_data_smoothed, cf, BW_CALC_VAR)
     
-    ### Possible breaking change
-    cf_recalculate = (np.argmax(fft_data_smoothed[int(cf-bw/2):int(cf+bw/2)]) - bw) + cf #Shifts the cf to the middle of the bw rather than the power peak. The shift should be 0 for signals such as AM and CW but may affect unbalanced signals such as LSB
-    cf = cf_recalculate
-    ### Possible breaking change
     
     if BW_OVERRIDE:
         bw = int(BW_OVERRIDE_VAL)
-    slicer_lower = (cf-(bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no ##Offset fix? The offset is variable with changes to the smoothing filter - convolution shift?
-    slicer_upper = (cf+(bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no
+    slicer_lower = (cf_corrected - (bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no ##Offset fix? The offset is variable with changes to the smoothing filter - convolution shift?
+    slicer_upper = (cf_corrected + (bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no
     #print("Slicing Between: ", slicer_lower, slicer_upper, "BW: ", bw, "CF: ", cf, peakinfo)
     #Slice FFT
     output_fft = fft_data[int(slicer_lower):int(slicer_upper)]
@@ -572,8 +567,15 @@ def find_3db_bw_JR_single_peak(data, peak, BW_CALC_VAR):
     bw1 = (max_bw - peak)*2
     bw2 = (peak - min_bw)*2
     bw = max(bw1, bw2)
-    #print("BW max min:", bw, max_bw, min_bw)
-    return bw
+    
+    if (bw1>bw2):
+        cf = max_bw - bw/2
+    elif (bw2>bw1):
+        cf = min_bw + bw/2
+    else:
+        cf = peak
+    
+    return bw, cf
 
 
 def find_3db_bw_max(data, peak, BW_CALC_VAR, step=10):
