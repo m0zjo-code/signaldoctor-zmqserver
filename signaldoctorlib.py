@@ -220,7 +220,7 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
     # Will now unroll FFT so that 0Hz is in the middle
     buffer_fft_rolled = np.roll(buffer_fft, int(len(buffer_fft)/2))
     
-    # Compute absolute fft
+    # Compute peroidogram
     buffer_abs = np.abs(buffer_fft_rolled*buffer_fft_rolled.conj())
     
     # Compute energy
@@ -254,12 +254,12 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
     for i in range(0,smooth_no):
         buffer_abs = smooth(buffer_abs, window_len=smooth_stride, window ='hanning')
     
-    # Normalise to zero mean, varience = 1
-    buffer_abs = zscore(buffer_abs)
-    
+    # Normalise to zero mean, sd = 1
+    buffer_abs = buffer_abs/np.std(buffer_abs)
+    buffer_abs = buffer_abs - np.min(buffer_abs)
     # Could attempt detrending - was found to be counter productive 
     # buffer_abs = signal.detrend(buffer_abs)
-    buffer_abs = buffer_abs - np.min(buffer_abs)
+    #buffer_abs = buffer_abs - np.min(buffer_abs)
     
     # Find peaks in data using the detect_peaks function
     peak_threshold = float(config['DETECTION_OPTIONS']['peak_threshold'])
@@ -546,8 +546,14 @@ def fd_decimate(fft_data, resample_ratio, fft_data_smoothed, peakinfo, osr, BW_C
     #Calculate 3dB peak bandwidth
     #TODO
     
-    cf = peakinfo
+    cf = peakinfo #Relative cf
     bw = find_3db_bw_JR_single_peak(fft_data_smoothed, peakinfo, BW_CALC_VAR)
+    
+    ### Possible breaking change
+    cf_recalculate = (np.argmax(fft_data_smoothed[int(cf-bw/2):int(cf+bw/2)]) - bw) + cf #Shifts the cf to the middle of the bw rather than the power peak. The shift should be 0 for signals such as AM and CW but may affect unbalanced signals such as LSB
+    cf = cf_recalculate
+    ### Possible breaking change
+    
     if BW_OVERRIDE:
         bw = int(BW_OVERRIDE_VAL)
     slicer_lower = (cf-(bw/2)*osr)*resample_ratio #- resample_ratio*smooth_stride*smooth_no ##Offset fix? The offset is variable with changes to the smoothing filter - convolution shift?
