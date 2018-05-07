@@ -1,9 +1,10 @@
 import numpy as np
 import scipy.signal
-from detect_peaks import detect_peaks
+import detect_peaks
 import peakutils.peak
 import peakdetect
 import findpeaks
+import tb_detect_peaks
 
 
 def plot_peaks(x, indexes, algorithm=None, mph=None, mpd=None, setup=''):
@@ -29,7 +30,7 @@ def plot_peaks(x, indexes, algorithm=None, mph=None, mpd=None, setup=''):
     ax.set_ylim(ymin - 0.1*yrange, ymax + 0.1*yrange)  
     ax.set_ylim(-70, 35)
     ax.set_xlabel('Search Vector', fontsize=14)
-    ax.set_ylabel('Amplitude', fontsize=14)
+    ax.set_ylabel('10log(Amplitude/WHz^-1)', fontsize=14)
     ax.set_title('%s %s' % (algorithm, setup))
     plt.show()
 
@@ -59,11 +60,12 @@ def scipy_argrelextrema(vector):
     plot_peaks(
         np.array(vector),
         np.array(indexes),
-        algorithm='scipy.signal.argrelextrema'
+        algorithm='scipy.signal.argrelextrema',
+        setup = 'comparator=np.greater, order=2'
     )
     
 def detect_peaks_test(vector):
-    indexes = detect_peaks(
+    indexes = detect_peaks.detect_peaks(
         vector, 
         mph=-40, 
         mpd=5, 
@@ -73,27 +75,29 @@ def detect_peaks_test(vector):
     plot_peaks(
         np.array(vector),
         np.array(indexes),
-        algorithm='detect_peaks'
+        algorithm='detect_peaks.detect_peaks',
+        setup = 'mph=-40, mpd=5, edge=rising edge'
     )
 
 def peakutils_test(vector):
     indexes = peakutils.peak.indexes(
         np.array(vector),
         thres=0.5, 
-        min_dist=2)
+        min_dist=5)
     print('Peaks are: %s' % (indexes))
     plot_peaks(
         np.array(vector),
         np.array(indexes),
-        algorithm='peakutils.peak.indexes'
+        algorithm='peakutils.peak.indexes',
+        setup = 'threshold=0.5, min_dist=2'
     )
 
 def peakdetect_test(vector):
     print('Detect peaks with distance filters.')
     peaks = peakdetect.peakdetect(
         np.array(vector), 
-        lookahead=20, 
-        delta=10)
+        lookahead=5, 
+        delta=5)
     # peakdetect returns two lists, respectively positive and negative peaks,
     # with for each peak a tuple of (indexes, values).
     indexes = []
@@ -104,7 +108,8 @@ def peakdetect_test(vector):
     plot_peaks(
         np.array(vector),
         np.array(indexes),
-        algorithm='peakutils.peak.indexes'
+        algorithm='peakdetect',
+        setup = 'lookahead=5, delta=5'
     )
 
 def findpeaks_test(vector):
@@ -116,7 +121,20 @@ def findpeaks_test(vector):
     plot_peaks(
         np.array(vector),
         np.array(indexes),
-        algorithm='peakutils.peak.indexes'
+        algorithm='findpeaks',
+        setup = 'spacing=1, limit=-40'
+    )
+
+
+def tb_detect_peaks_test(vector):
+    print('Detect peaks with height threshold.')
+    indexes = tb_detect_peaks.detect_peaks(vector, -0.5)
+    print('Peaks are: %s' % (indexes))
+    plot_peaks(
+        np.array(vector),
+        np.array(indexes),
+        algorithm='tb_detect_peaks.detect_peaks',
+        setup = 'threshold = -0.5'
     )
 
 
@@ -125,4 +143,4 @@ filename = 'search_psd.npz'
 npzload = np.load(filename)
 buffer_abs = npzload['buffer_abs']
 
-scipy_cwt(10*np.log(buffer_abs+0.00001))
+tb_detect_peaks_test(10*np.log(buffer_abs+0.00001))
