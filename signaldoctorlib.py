@@ -26,7 +26,10 @@ from scipy.fftpack import fft, ifft, fftn
 from detect_peaks import detect_peaks
 
 # FFTW Import - needs libfftw installed
-import pyfftw
+try:
+    import pyfftw
+except ImportError:
+    print("pyFFTW is broken on this host - any pyFFTW commands will be overridden")
 
 # DEBUG
 import matplotlib.pyplot as plt
@@ -299,8 +302,9 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
         local_fs = fs * len(buf)/buffer_len
         
         # Generated features (DEBUG)
-        plot_features = config['DETECTION_OPTIONS'].getboolean('plot_features')
-        feature_dict = generate_features(local_fs, buf, plot_features=plot_features, config=config)
+        #plot_features = config['DETECTION_OPTIONS'].getboolean('plot_features')
+        #feature_dict = generate_features(local_fs, buf, plot_features=plot_features, config=config)
+        feature_dict = {}
         feature_dict['local_fs'] = local_fs
         feature_dict['iq_data'] = buf
         feature_dict['offset'] = (fs * (i[1]-buffer_len/2)/buffer_len) + metadata['cf']

@@ -20,7 +20,7 @@ import configparser
 import matplotlib.pyplot as plt
 
 ## Setup Data - needs to match GNURadio setup to make sense
-fs = 2.09715e6
+fs = 1e6
 metadata = {'radio':'HackRF', 'cf':3.9e6}
 
 
