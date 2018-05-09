@@ -2,14 +2,14 @@ import timeit
 from scipy.fftpack import fft, ifft
 import pyfftw
 import numpy as np
-
+pyfftw.interfaces.cache.enable()
 
 def fft_wrap(iq_buffer, mode = 'pyfftw'):
     """
     Compute FFT - either using pyfftw (default) or scipy
     """
     if mode == 'pyfftw':
-        return pyfftw.interfaces.numpy_fft.fft(iq_buffer)
+        return pyfftw.interfaces.numpy_fft.fft(iq_buffer, threads=4)
     elif mode == 'scipy':
         return fft(iq_buffer) #### TODO CLEAN
     
@@ -18,23 +18,13 @@ def wrapper(func, *args, **kwargs):
         return fft_wrap(*args, **kwargs)
     return wrapped
     
-test_lens = [
-    2**8,
-    2**10,
-    2**12,
-    2**14,
-    2**16,
-    2**18,
-    2**20,
-    906679,
-    500
-    ]
 
-test_lens= [2**8, 2**10]
-number = 2
+test_lens= range(1, 22+1)
+number = 10
 
 def test_fft(mode, test_lens):
     for N in test_lens:
+        N = 2**N
         random_data = 1j*np.random.rand(N) + np.random.rand(N)
         wrapped_fft_wrap = wrapper(fft_wrap, random_data, mode = mode)
         #ts_cold = timeit.repeat(wrapped_fft_wrap, number=1)
@@ -44,7 +34,7 @@ def test_fft(mode, test_lens):
 
 f = open('FFT_logs.csv','w')
 
-print('## FFT Timing Test ##', file=f)
+# print('## FFT Timing Test ##', file=f)
 print('Mode, N, Min_Time, Mean_Time, Cold_Run', file=f)
 
 print("Running FFT Test - This may take a while")

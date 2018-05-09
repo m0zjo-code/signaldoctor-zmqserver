@@ -5,6 +5,7 @@ import peakutils.peak
 import peakdetect
 import findpeaks
 import tb_detect_peaks
+import timeit
 
 
 def plot_peaks(x, indexes, algorithm=None, mph=None, mpd=None, setup=''):
@@ -35,8 +36,8 @@ def plot_peaks(x, indexes, algorithm=None, mph=None, mpd=None, setup=''):
     plt.show()
 
 
-def scipy_cwt(vector):
-    print('Detect peaks without any filters.')
+def scipy_cwt(vector, plot=False):
+    
     indexes = scipy.signal.find_peaks_cwt(
         vector,
         np.arange(1, 10),
@@ -44,56 +45,65 @@ def scipy_cwt(vector):
         min_snr = 1.00
     )
     indexes = np.array(indexes) - 1
-    print('Peaks are: %s' % (indexes))
-    plot_peaks(
-        np.array(vector),
-        np.array(indexes),
-        algorithm='scipy.signal.find_peaks_cwt',
-        setup = 'Wavelet lengths 1-10, min_snr = 1'
-    )
     
-def scipy_argrelextrema(vector):
+    if plot:
+        print('Detect peaks without any filters.')
+        print('Peaks are: %s' % (indexes))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='scipy.signal.find_peaks_cwt',
+            setup = 'Wavelet lengths 1-10, min_snr = 1'
+        )
+    
+def scipy_argrelextrema(vector, plot=False):
     indexes = scipy.signal.argrelextrema(
         np.array(vector),
         comparator=np.greater,order=2)
-    print('Peaks are: %s' % (indexes[0]))
-    plot_peaks(
-        np.array(vector),
-        np.array(indexes),
-        algorithm='scipy.signal.argrelextrema',
-        setup = 'comparator=np.greater, order=2'
-    )
     
-def detect_peaks_test(vector):
+    if plot:
+        print('Peaks are: %s' % (indexes[0]))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='scipy.signal.argrelextrema',
+            setup = 'comparator=np.greater, order=2'
+        )
+    
+def detect_peaks_test(vector, plot=False):
     indexes = detect_peaks.detect_peaks(
         vector, 
         mph=-40, 
         mpd=5, 
         edge='rising', 
         show=False)
-    print('Peaks are: %s' % (indexes))
-    plot_peaks(
-        np.array(vector),
-        np.array(indexes),
-        algorithm='detect_peaks.detect_peaks',
-        setup = 'mph=-40, mpd=5, edge=rising edge'
-    )
+    
+    if plot:
+        print('Peaks are: %s' % (indexes))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='detect_peaks.detect_peaks',
+            setup = 'mph=-40, mpd=5, edge=rising edge'
+        )
 
-def peakutils_test(vector):
+def peakutils_test(vector, plot=False):
     indexes = peakutils.peak.indexes(
         np.array(vector),
         thres=0.5, 
         min_dist=5)
-    print('Peaks are: %s' % (indexes))
-    plot_peaks(
-        np.array(vector),
-        np.array(indexes),
-        algorithm='peakutils.peak.indexes',
-        setup = 'threshold=0.5, min_dist=2'
-    )
+    
+    if plot:
+        print('Peaks are: %s' % (indexes))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='peakutils.peak.indexes',
+            setup = 'threshold=0.5, min_dist=2'
+        )
 
-def peakdetect_test(vector):
-    print('Detect peaks with distance filters.')
+def peakdetect_test(vector, plot=False):
+    
     peaks = peakdetect.peakdetect(
         np.array(vector), 
         lookahead=5, 
@@ -104,38 +114,51 @@ def peakdetect_test(vector):
     for posOrNegPeaks in peaks:
         for peak in posOrNegPeaks:
             indexes.append(peak[0])
-    print('Peaks are: %s' % (indexes))
-    plot_peaks(
-        np.array(vector),
-        np.array(indexes),
-        algorithm='peakdetect',
-        setup = 'lookahead=5, delta=5'
-    )
+    
+    if plot:
+        print('Detect peaks with distance filters.')
+        print('Peaks are: %s' % (indexes))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='peakdetect',
+            setup = 'lookahead=5, delta=5'
+        )
 
-def findpeaks_test(vector):
+def findpeaks_test(vector, plot=False):
     indexes = findpeaks.findpeaks(
         np.array(vector), 
         spacing=1, 
         limit=-40)
-    print('Peaks are: %s' % (indexes))
-    plot_peaks(
-        np.array(vector),
-        np.array(indexes),
-        algorithm='findpeaks',
-        setup = 'spacing=1, limit=-40'
-    )
+    
+    if plot:
+        print('Peaks are: %s' % (indexes))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='findpeaks',
+            setup = 'spacing=1, limit=-40'
+        )
 
 
-def tb_detect_peaks_test(vector):
-    print('Detect peaks with height threshold.')
+def tb_detect_peaks_test(vector, plot=False):
     indexes = tb_detect_peaks.detect_peaks(vector, -0.5)
-    print('Peaks are: %s' % (indexes))
-    plot_peaks(
-        np.array(vector),
-        np.array(indexes),
-        algorithm='tb_detect_peaks.detect_peaks',
-        setup = 'threshold = -0.5'
-    )
+    if plot:
+        print('Detect peaks with height threshold.')
+        print('Peaks are: %s' % (indexes))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='tb_detect_peaks.detect_peaks',
+            setup = 'threshold = -0.5'
+        )
+    
+
+    
+def wrapper(func, *args, **kwargs):
+    def wrapped():
+        return func(*args, **kwargs)
+    return wrapped
 
 
 filename = 'search_psd.npz'
@@ -143,4 +166,45 @@ filename = 'search_psd.npz'
 npzload = np.load(filename)
 buffer_abs = npzload['buffer_abs']
 
-tb_detect_peaks_test(10*np.log(buffer_abs+0.00001))
+f = open('pd_logs.csv','w')
+
+number = 10
+buffer_abs = 10*np.log(buffer_abs+0.00001)
+
+print("Mode: min(ts)/number")
+print("Mode: min(ts)/number", file=f)
+
+wrapped_fft_wrap = wrapper(scipy_cwt, buffer_abs, plot=False)
+ts = timeit.repeat(wrapped_fft_wrap, number=number)
+print("scipy_cwt:", min(ts)/number)
+print("scipy_cwt:", min(ts)/number, file=f)
+
+wrapped_fft_wrap = wrapper(scipy_argrelextrema, buffer_abs, plot=False)
+ts = timeit.repeat(wrapped_fft_wrap, number=number)
+print("scipy_argrelextrema:", min(ts)/number)
+print("scipy_argrelextrema:", min(ts)/number, file=f)
+
+wrapped_fft_wrap = wrapper(detect_peaks_test, buffer_abs, plot=False)
+ts = timeit.repeat(wrapped_fft_wrap, number=number)
+print("detect_peaks_test:", min(ts)/number)
+print("detect_peaks_test:", min(ts)/number, file=f)
+
+wrapped_fft_wrap = wrapper(peakutils_test, buffer_abs, plot=False)
+ts = timeit.repeat(wrapped_fft_wrap, number=number)
+print("peakutils_test:", min(ts)/number)
+print("peakutils_test:", min(ts)/number, file=f)
+
+wrapped_fft_wrap = wrapper(peakdetect_test, buffer_abs, plot=False)
+ts = timeit.repeat(wrapped_fft_wrap, number=number)
+print("peakdetect_test:", min(ts)/number)
+print("peakdetect_test:", min(ts)/number, file=f)
+
+wrapped_fft_wrap = wrapper(findpeaks_test, buffer_abs, plot=False)
+ts = timeit.repeat(wrapped_fft_wrap, number=number)
+print("findpeaks_test:", min(ts)/number)
+print("findpeaks_test:", min(ts)/number, file=f)
+
+wrapped_fft_wrap = wrapper(tb_detect_peaks_test, buffer_abs, plot=False)
+ts = timeit.repeat(wrapped_fft_wrap, number=number)
+print("tb_detect_peaks_test:", min(ts)/number)
+print("tb_detect_peaks_test:", min(ts)/number, file=f)
