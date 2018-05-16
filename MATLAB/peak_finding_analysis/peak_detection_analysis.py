@@ -69,6 +69,22 @@ def scipy_argrelextrema(vector, plot=False):
             algorithm='scipy.signal.argrelextrema',
             setup = 'comparator=np.greater, order=2'
         )
+        
+def scipy_findpeaks(vector, plot=True):
+    indexes, _ = scipy.signal.find_peaks(
+        np.array(vector),
+        prominence=10,
+        height=-50,
+        distance=5)
+    
+    if plot:
+        print('Peaks are: %s' % (indexes[0]))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes),
+            algorithm='scipy.signal.find_peaks',
+            setup = 'prominence=10,height=-50,distance=5'
+        )
     
 def detect_peaks_test(vector, plot=False):
     indexes = detect_peaks.detect_peaks(
@@ -171,40 +187,47 @@ f = open('pd_logs.csv','w')
 number = 10
 buffer_abs = 10*np.log(buffer_abs+0.00001)
 
-print("Mode: min(ts)/number")
-print("Mode: min(ts)/number", file=f)
+scipy_findpeaks(buffer_abs, plot=True)
 
-wrapped_fft_wrap = wrapper(scipy_cwt, buffer_abs, plot=False)
-ts = timeit.repeat(wrapped_fft_wrap, number=number)
-print("scipy_cwt:", min(ts)/number)
-print("scipy_cwt:", min(ts)/number, file=f)
+#print("Mode: min(ts)/number")
+#print("Mode: min(ts)/number", file=f)
 
-wrapped_fft_wrap = wrapper(scipy_argrelextrema, buffer_abs, plot=False)
-ts = timeit.repeat(wrapped_fft_wrap, number=number)
-print("scipy_argrelextrema:", min(ts)/number)
-print("scipy_argrelextrema:", min(ts)/number, file=f)
+#wrapped_fft_wrap = wrapper(scipy_cwt, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("scipy_cwt:", min(ts)/number)
+#print("scipy_cwt:", min(ts)/number, file=f)
 
-wrapped_fft_wrap = wrapper(detect_peaks_test, buffer_abs, plot=False)
-ts = timeit.repeat(wrapped_fft_wrap, number=number)
-print("detect_peaks_test:", min(ts)/number)
-print("detect_peaks_test:", min(ts)/number, file=f)
+#wrapped_fft_wrap = wrapper(scipy_argrelextrema, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("scipy_argrelextrema:", min(ts)/number)
+#print("scipy_argrelextrema:", min(ts)/number, file=f)
 
-wrapped_fft_wrap = wrapper(peakutils_test, buffer_abs, plot=False)
-ts = timeit.repeat(wrapped_fft_wrap, number=number)
-print("peakutils_test:", min(ts)/number)
-print("peakutils_test:", min(ts)/number, file=f)
+#wrapped_fft_wrap = wrapper(scipy_argrelextrema, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("scipy_argrelextrema:", min(ts)/number)
+#print("scipy_argrelextrema:", min(ts)/number, file=f)
 
-wrapped_fft_wrap = wrapper(peakdetect_test, buffer_abs, plot=False)
-ts = timeit.repeat(wrapped_fft_wrap, number=number)
-print("peakdetect_test:", min(ts)/number)
-print("peakdetect_test:", min(ts)/number, file=f)
+#wrapped_fft_wrap = wrapper(detect_peaks_test, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("detect_peaks_test:", min(ts)/number)
+#print("detect_peaks_test:", min(ts)/number, file=f)
 
-wrapped_fft_wrap = wrapper(findpeaks_test, buffer_abs, plot=False)
-ts = timeit.repeat(wrapped_fft_wrap, number=number)
-print("findpeaks_test:", min(ts)/number)
-print("findpeaks_test:", min(ts)/number, file=f)
+#wrapped_fft_wrap = wrapper(peakutils_test, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("peakutils_test:", min(ts)/number)
+#print("peakutils_test:", min(ts)/number, file=f)
 
-wrapped_fft_wrap = wrapper(tb_detect_peaks_test, buffer_abs, plot=False)
-ts = timeit.repeat(wrapped_fft_wrap, number=number)
-print("tb_detect_peaks_test:", min(ts)/number)
-print("tb_detect_peaks_test:", min(ts)/number, file=f)
+#wrapped_fft_wrap = wrapper(peakdetect_test, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("peakdetect_test:", min(ts)/number)
+#print("peakdetect_test:", min(ts)/number, file=f)
+
+#wrapped_fft_wrap = wrapper(findpeaks_test, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("findpeaks_test:", min(ts)/number)
+#print("findpeaks_test:", min(ts)/number, file=f)
+
+#wrapped_fft_wrap = wrapper(tb_detect_peaks_test, buffer_abs, plot=False)
+#ts = timeit.repeat(wrapped_fft_wrap, number=number)
+#print("tb_detect_peaks_test:", min(ts)/number)
+#print("tb_detect_peaks_test:", min(ts)/number, file=f)
