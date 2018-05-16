@@ -8,7 +8,7 @@ import sys
 import zmq
 import numpy as np
 import sys, getopt
-port = 5555
+port = 5550
 pubport = 5556
 pubport_global = 5558
 
@@ -54,7 +54,8 @@ def main(args, config):
         
         # Keep recieving data and processing
         while True:
-            string = socket.recv()
+            string = socket.recv_pyobj()
+            print(type(string))
             buffer_data = np.fromstring(string, dtype = 'complex64')
             sdl.analyse_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata, config=config)
     
@@ -69,7 +70,7 @@ def main(args, config):
 
         # Keep recieving data and processing
         while True:
-            string = socket.recv()
+            string = socket.recv_pyobj()
             buffer_data = np.fromstring(string, dtype = 'complex64')
             sdl.analyse_buffer(buffer_data, fs=fs, LOG_IQ=LOG_IQ, pubsocket=[pubsocket, pubsocket_global], metadata=metadata, config=config)
     print("No arguments supplied - exiting. For help please run with -h flag")

@@ -261,7 +261,7 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
     buffer_abs = buffer_abs/np.std(buffer_abs)
     buffer_abs = buffer_abs - np.min(buffer_abs)
     # Could attempt detrending - was found to be counter productive 
-    # buffer_abs = signal.detrend(buffer_abs)
+    # buffer_abs = signal.detrend(buffer_abs)   
     #buffer_abs = buffer_abs - np.min(buffer_abs)
     
     # Saving the search psd for investigation and debugging
@@ -271,6 +271,7 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
     # Find peaks in data using the detect_peaks function
     peak_threshold = float(config['DETECTION_OPTIONS']['peak_threshold'])
     plot_peaks = config['DETECTION_OPTIONS'].getboolean('plot_peaks')
+    buffer_abs = 10*np.log(buffer_abs+0.00001)
     buffer_peakdata = detect_peaks(buffer_abs, mph=peak_threshold , mpd=2, edge='rising', show=plot_peaks)
     
     #Search for signals of interest
