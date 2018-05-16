@@ -43,7 +43,7 @@ def npmax(l):
     max_val = l[max_idx]
     return (max_idx, max_val)
 
-def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/', LOG_IQ = True, LOG_SPEC = True):
+def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/', LOG_IQ = True, LOG_SPEC = True, config = None):
     """
     Write IQ data into npy file
     The MATLAB *.mat file can also be used
@@ -60,7 +60,8 @@ def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/',
             print("Invalid Output Format Specified")
     # Save Spec
     if LOG_SPEC:
-        imsave(output_folder+filename+".png", channel_dict['magnitude'])
+        feature_dict = generate_features(channel_dict['local_fs'], channel_dict['iq_data'], plot_features=False, config=config)
+        imsave(output_folder+filename+".png", feature_dict['magnitude'])
 
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
 def id_generator(size=6, chars=string.ascii_uppercase + string.digits):
@@ -145,10 +146,10 @@ def analyse_buffer(buffer_data, fs=1, LOG_IQ = True, pubsocket=None, metadata=No
     # We now have the features and iq data
     LOG_MODE = config['DETECTION_OPTIONS']['LOG_MODE']
     LOG_SPEC = config['DETECTION_OPTIONS'].getboolean('LOG_SPEC')
-    if LOG_IQ:
+    if LOG_IQ or LOG_SPEC:
         print("Logging.....")
         for iq_channel in extracted_iq_dict:
-            save_IQ_buffer(iq_channel, output_format=LOG_MODE, LOG_IQ=LOG_IQ, LOG_SPEC=LOG_SPEC)
+            save_IQ_buffer(iq_channel, output_format=LOG_MODE, LOG_IQ=LOG_IQ, LOG_SPEC=LOG_SPEC, config=config)
     send_features(extracted_iq_dict, pubsocket[0], metadata=metadata)
     
 def send_features(extracted_features, pubsocket, metadata=None):
@@ -271,7 +272,7 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
     # Find peaks in data using the detect_peaks function
     peak_threshold = float(config['DETECTION_OPTIONS']['peak_threshold'])
     plot_peaks = config['DETECTION_OPTIONS'].getboolean('plot_peaks')
-    buffer_abs = 10*np.log(buffer_abs+0.00001)
+    #buffer_abs = 10*np.log(buffer_abs+0.00001)
     buffer_peakdata = detect_peaks(buffer_abs, mph=peak_threshold , mpd=2, edge='rising', show=plot_peaks)
     
     #Search for signals of interest
