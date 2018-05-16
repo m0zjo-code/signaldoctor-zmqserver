@@ -6,7 +6,8 @@ import zmq, sys
 pubport_global = 5550
 
 pubcontext = zmq.Context()
-pubsocket = pubcontext  .socket(zmq.PUB)
+pubsocket = pubcontext.socket(zmq.PUB)
+pubsocket.set_hwm(100)
 pubsocket.bind('tcp://127.0.0.1:%i' % pubport_global)
 
 #enumerate devices
@@ -48,6 +49,7 @@ out_buff = numpy.array([0]*out_buff_len, numpy.complex64)
 
 ##receive some samples
 i = 0
+j = 0
 while True:
     sr = sdr.readStream(rxStream, [buff], len(buff))
     if out_buff_len-i >= 714:
@@ -55,10 +57,11 @@ while True:
     else:
         delta = out_buff_len-i
         out_buff[i:i+delta] = buff[0:delta]
-        print("Send Pyobj")
+        print("Send Pyobj", j)
+        j=j+1
         pubsocket.send_pyobj(out_buff)
         i = 0
-        sys.exit(0)
+        #sys.exit(0)
     i = i + 714
 
 #shutdown the stream
