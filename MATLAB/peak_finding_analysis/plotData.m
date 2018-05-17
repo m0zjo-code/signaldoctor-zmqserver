@@ -1,20 +1,27 @@
 %% Load Data
-A = dlmread ('PeakDetectResults.csv',',')
+T = readtable('PeakDetectResults.csv');
+A = table2array(T(:,2:4));
+
 %% Plot data
 
 figure(1)
-hBar = bar(sqrt(A(:,3)));
+hBar = bar(sqrt(A(:,2)));
 xt = get(gca, 'XTick');
-set(gca, 'XTick', xt, 'XTickLabel', {'scipy_cwt'
-'scipy_argrelextrema'
-'scipy_findpeaks'
-'detect_peaks_tes'
-'peakutils_test'
-'peakdetect_test'
-'findpeaks_test'
-'tb_detect_peaks_test'})
+set(gca, 'XTick', xt, 'XTickLabel', {
+    'scipy-cwt'
+    'scipy-argrelextrema'
+    'scipy-findpeaks'
+    'detect-peaks-md'
+    'peakutils'
+    'peakdetect-sb'
+    'findpeaks-js'
+    'detect-peaks-tb'
+})
 xtickangle(45)
 
+grid on
+grid minor
+
 ylabel('sqrt(Time(s))')
-xlabel('Peak Detection Algorithms')
-title('Peak Detection Computation Times')
+xlabel('Peak Detection Algorithms','FontSize',12)
+title('Peak Detection Computation Time Results')
