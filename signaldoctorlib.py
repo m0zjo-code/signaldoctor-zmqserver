@@ -50,6 +50,8 @@ def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/',
     """
     # Generate ID
     filename = id_generator()
+    # Get plotting status
+    plot_features = config['DETECTION_OPTIONS'].getboolean('plot_features')
     # Save IQ 
     if LOG_IQ:
         if (output_format == 'npz'):
@@ -60,7 +62,7 @@ def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/',
             print("Invalid Output Format Specified")
     # Save Spec
     if LOG_SPEC:
-        feature_dict = generate_features(channel_dict['local_fs'], channel_dict['iq_data'], plot_features=False, config=config)
+        feature_dict = generate_features(channel_dict['local_fs'], channel_dict['iq_data'], plot_features=plot_features, config=config)
         imsave(output_folder+filename+".png", feature_dict['magnitude'])
 
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
@@ -270,10 +272,15 @@ def process_buffer(buffer_in, fs=1, tx_socket=None ,metadata=None, config=None):
     # np.savez(filename+".npz",buffer_abs=buffer_abs, fs=fs/resample_ratio)
     
     # Find peaks in data using the detect_peaks function
-    peak_threshold = float(config['DETECTION_OPTIONS']['peak_threshold'])
+    
     plot_peaks = config['DETECTION_OPTIONS'].getboolean('plot_peaks')
-    #buffer_abs = 10*np.log(buffer_abs+0.00001)
-    buffer_peakdata = detect_peaks(buffer_abs, mph=peak_threshold , mpd=2, edge='rising', show=plot_peaks)
+    channel_stride_hz = float(config['DETECTION_OPTIONS']['channel_stride_hz'])
+    channel_stride = int((buffer_len*channel_stride_hz)/(resample_ratio*fs))
+    
+    buffer_abs_log = 10*np.log(buffer_abs+0.00001)
+    buffer_peakdata = scipy_findpeaks(buffer_abs_log, distance=channel_stride, config=config, plot=plot_peaks)
+    print(buffer_peakdata)
+    
     
     #Search for signals of interest
     OSR = float(config['DETECTION_OPTIONS']['osr'])
@@ -389,18 +396,26 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot_featur
     Zxx_phi = np.abs(np.unwrap(np.angle(Zxx_cmplx), axis=0))
     
     # Compute correlation coefficient array 
-    Zxx_cec = np.abs(np.corrcoef(Zxx_mag_log, Zxx_mag_log))
+    Zxx_cov = np.abs(np.cov(Zxx_mag_log))
+    
+    # Compute correlation coefficient array 
+    Zxx_cec = np.abs(np.corrcoef(Zxx_mag_log))
+    
     
     # Normalise arrays
     diff_array0_rs = normalise_spectrogram(diff_array0, spec_size, spec_size)
     diff_array1_rs = normalise_spectrogram(diff_array1, spec_size, spec_size)
     Zxx_mag_rs = normalise_spectrogram(Zxx_mag_log, spec_size, spec_size)
     Zxx_phi_rs = normalise_spectrogram(Zxx_phi, spec_size, spec_size)
-    Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size*2, spec_size*2)
+    Zxx_cec_rs = normalise_spectrogram(Zxx_cec, spec_size, spec_size)
+    Zxx_cov_rs = normalise_spectrogram(Zxx_cov, spec_size, spec_size)
     
     # Extract quadrant of cec array (as it is repeated)
-    Zxx_cec_rs = blockshaped(Zxx_cec_rs, spec_size, spec_size)
-    Zxx_cec_rs = Zxx_cec_rs[0]
+    #Zxx_cec_rs = blockshaped(Zxx_cec_rs, spec_size, spec_size)
+    #Zxx_cec_rs = Zxx_cec_rs[0]
+    
+    #plt.pcolormesh(Zxx_cec)
+    #plt.show()
     
     # Compute PSD by averaging power spectrogram
     PSD = np.mean(Zxx_mag_rs, axis=1)
@@ -482,6 +497,12 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot_featur
         plt.ylabel(" ")
         plt.pcolormesh(Zxx_mag_hilb)
         
+        plt.subplot(nx, ny, 12)
+        plt.title("Cov Spectrum")
+        plt.xlabel(" ")
+        plt.ylabel(" ")
+        plt.pcolormesh(Zxx_cov_rs)
+        
         mng = plt.get_current_fig_manager() ## Make full screen
         mng.full_screen_toggle()
         plt.show()
@@ -491,6 +512,7 @@ def generate_features(local_fs, iq_data, spec_size=256, roll = True, plot_featur
     output_dict['magnitude'] = Zxx_mag_rs
     output_dict['phase'] = Zxx_phi_rs
     output_dict['corrcoef'] = Zxx_cec_rs
+    output_dict['cov'] = Zxx_cov_rs
     output_dict['psd'] = PSD
     output_dict['variencespectrum'] = Varience_Spectrum
     output_dict['differentialspectrumdensity'] = Differential_Spectrum
@@ -618,3 +640,45 @@ def find_3db_bw_min(data, peak, BW_CALC_VAR, step=10):
         elif (data[i] > previous_value):
             return i
     return 0 ##Nothing found - should probably raise an error here
+
+def plot_peaks(x, indexes, algorithm=None, mph=None, mpd=None, setup=''):
+    """Plot results of the peak dectection."""
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError:
+        print('matplotlib is not available.')
+        return
+    _, ax = plt.subplots(1, 1, figsize=(8, 4))
+    ax.plot(x, 'b', lw=1)
+    if indexes.size:
+        label = 'peak'
+        label = label + 's' if indexes.size > 1 else label
+        ax.plot(indexes, x[indexes], '+', mfc=None, mec='r', mew=2, ms=8,
+                label='%d %s' % (indexes.size, label))
+        #ax.legend(loc='best', framealpha=.5, numpoints=1)
+    
+    ymin, ymax = x[np.isfinite(x)].min(), x[np.isfinite(x)].max()
+    yrange = ymax - ymin if ymax > ymin else 1
+    ax.set_ylim(ymin - 0.1*yrange, ymax + 0.1*yrange)  
+    ax.set_xlabel('Search Vector', fontsize=14)
+    ax.set_ylabel('10log(Amplitude/WHz^-1)', fontsize=14)
+    ax.set_title('%s %s' % (algorithm, setup))
+    plt.show()
+    
+def scipy_findpeaks(vector, distance=5, config=None, plot=False):
+    peak_prominence = float(config['DETECTION_OPTIONS']['peak_prominence'])
+    peak_threshold = float(config['DETECTION_OPTIONS']['peak_threshold'])
+
+    indexes, _ = signal.find_peaks(
+        np.array(vector),
+        prominence=peak_prominence,
+        threshold=peak_threshold,
+        distance=distance)
+    
+    if plot:
+        print('Peaks are: %s' % (indexes[0]))
+        plot_peaks(
+            np.array(vector),
+            np.array(indexes)
+        )
+    return indexes
