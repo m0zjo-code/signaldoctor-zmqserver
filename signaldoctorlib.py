@@ -23,7 +23,7 @@ from scipy.stats import zscore
 from scipy.fftpack import fft, ifft, fftn
 
 # Import peak detector - avalible: https://github.com/MonsieurV/py-findpeaks/blob/master/tests/libs/detect_peaks.py
-from detect_peaks import detect_peaks
+#from detect_peaks import detect_peaks
 
 # FFTW Import - needs libfftw installed
 try:
