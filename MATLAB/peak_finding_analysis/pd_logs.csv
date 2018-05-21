@@ -1,0 +1,9 @@
+Mode: min(ts)/number
+scipy_cwt: 0.3452479926985689
+scipy_argrelextrema: 0.00014364149828907102
+scipy_findpeaks: 0.0003121083020232618
+detect_peaks_test: 0.001254637399688363
+peakutils_test: 0.0005657497997162864
+peakdetect_test: 0.009058369699050672
+findpeaks_test: 0.00010120359947904945
+tb_detect_peaks_test: 0.004819664399838075
