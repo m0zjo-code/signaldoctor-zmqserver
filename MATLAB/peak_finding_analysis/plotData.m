@@ -22,6 +22,6 @@ xtickangle(45)
 grid on
 grid minor
 
-ylabel('log(Calculation Time(s))')
+ylabel('log(Calculation Time(us))')
 xlabel('Peak Detection Algorithms','FontSize',12)
 title('Peak Detection Computation Time Results')
