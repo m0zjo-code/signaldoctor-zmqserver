@@ -29,7 +29,7 @@ freqs = sdr.getFrequencyRange(SOAPY_SDR_RX, 0)
 for freqRange in freqs: print(freqRange)
 
 #apply settings
-sdr.setSampleRate(SOAPY_SDR_RX, 0, 1e6)
+sdr.setSampleRate(SOAPY_SDR_RX, 0, 4e6)
 sdr.setFrequency(SOAPY_SDR_RX, 0, 100.3e6)
 sdr.setGain(SOAPY_SDR_RX, 0, 'LNA', 0)
 sdr.setGain(SOAPY_SDR_RX, 0, 'AMP', 27)
