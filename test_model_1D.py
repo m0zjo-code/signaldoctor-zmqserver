@@ -17,6 +17,8 @@ config.read('sdl_config.ini')
 
 import sys
 
+#network_definition_location = "/media/jonathan/ea2eea90-b89c-4e24-b854-05970b317ba4/prototype_networks/MeanPSD_Adamax_1_2_1527692848.nn"
+#network_weights_location = "/media/jonathan/ea2eea90-b89c-4e24-b854-05970b317ba4/prototype_networks/MeanPSD_Adamax_1_2_1527692848.h5"
 network_definition_location = "/mnt/datastore/FYP/prototypenetworks/MeanPSD_Adamax_1_2_1527692848.nn"
 network_weights_location = "/mnt/datastore/FYP/prototypenetworks/MeanPSD_Adamax_1_2_1527692848.h5"
 
@@ -84,6 +86,7 @@ print(loaded_model.metrics_names)
 print(scores)
 
 ### Now to generate 
+#input_folder = "/media/jonathan/ea2eea90-b89c-4e24-b854-05970b317ba4/HF_Dataset"
 input_folder = "/mnt/datastore/FYP/training_sets/reducedset31052018"
 
 
