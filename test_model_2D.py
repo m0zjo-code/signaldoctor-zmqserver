@@ -17,10 +17,10 @@ config.read('sdl_config.ini')
 
 import sys
 
-network_definition_location = "/mnt/datastore/FYP/prototypenetworks/MeanPSD_Adamax_1_2_1527692848.nn"
-network_weights_location = "/mnt/datastore/FYP/prototypenetworks/MeanPSD_Adamax_1_2_1527692848.h5"
+network_definition_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGSPEC300518_Adadelta_4_1_1527760237.nn"
+network_weights_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGSPEC300518_Adadelta_4_1_1527760237.h5"
 
-data_test_set = "/mnt/datastore/FYP/training_sets/training31052018/MeanPSDTrainingData.npz"
+data_test_set = "/mnt/datastore/FYP/training_sets/training31052018/MagSpecTrainingData.npz"
 
 def norm_data(X):
     return (X-np.min(X))/(np.max(X)-np.min(X))
@@ -94,7 +94,7 @@ class_index['AM'] = 2
 class_index['FSK'] = 3
 class_index['CW'] = 4
 
-filename_prefix = str(int(time.time())) + "_PSD"
+filename_prefix = str(int(time.time())) + "_MAG"
 
 def awgn(iq_data, snr):
     no_samples = iq_data.shape[0]
@@ -121,7 +121,7 @@ def feature_gen(file_list, spec_size, config = None, snr = None):
         feature_dict = sdl.generate_features(fs, iq_data, spec_size, plot_features = False, config = config)
         
         #tmp_spec = np.stack((feature_dict['magnitude'], feature_dict['phase'], feature_dict['corrcoef'], feature_dict['differentialspectrum_freq'], feature_dict['differentialspectrum_time']), axis=-1)
-        output_list.append(feature_dict['psd'])
+        output_list.append(feature_dict['magnitude'])
         
         #plt.pcolormesh(feature_dict['magnitude'])
         #plt.show()
