@@ -20,7 +20,7 @@ def wrapper(func, *args, **kwargs):
     
 
 test_lens= range(1, 22+1)
-number = 10
+number = 1000
 
 def test_fft(mode, test_lens):
     for N in test_lens:
