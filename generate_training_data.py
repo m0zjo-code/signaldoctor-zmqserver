@@ -1,23 +1,35 @@
 import numpy as np
 import signaldoctorlib as sdl
 import os, shutil, configparser
-import glob
+import glob, random
 import matplotlib.pyplot as plt
 
 ## Takes training IQ data and generates training features
 
 SPEC_SIZE = 256 ## NxN input tensor size
 
-#input_folder = "/home/jonathan/HF_Dataset"
+ADD_RANDOM_NOISE_LEVEL = True
+
+#input_folder = "/media/jonathan/ea2eea90-b89c-4e24-b854-05970b317ba4/HF_Reduced/HF_Dataset"
 input_folder = "/home/jonathan/HF_Dataset"
 
-LOAD_FROM_DATASTORE = False
+LOAD_FROM_DATASTORE = True
 
 def load_npz(filename):
     data = np.load(filename)
     iq_data = data['channel_iq']
     fs = data['fs']
     return fs, iq_data
+
+def awgn(iq_data, snr):
+    no_samples = iq_data.shape[0]
+    abs_iq = np.abs(iq_data*iq_data.conj())
+    signal_power = np.sum(abs_iq)/no_samples
+    k = signal_power * 10**(-snr/20)
+    noise_output = np.empty((no_samples), dtype=np.complex)
+    noise_output.real = np.random.normal(0,1,no_samples) * np.sqrt(k)
+    noise_output.imag = np.random.normal(0,1,no_samples) * np.sqrt(k)
+    return iq_data+noise_output
 
 def feature_gen(file_list, spec_size, config = None):
     output_list_mean = []
@@ -34,6 +46,10 @@ def feature_gen(file_list, spec_size, config = None):
         #print("%i samples loaded at a rate of %f" % (len(iq_data), fs))
         #print("We have %f s of data" % (len(iq_data)/fs))
         print("Reading-->>",filename)
+        if ADD_RANDOM_NOISE_LEVEL:
+            snr = random.triangular(-20, 20)
+            iq_data = awgn(iq_data, snr)
+            print("Applied SNR value of %f dB"%snr)
 
         feature_dict = sdl.generate_features(fs, iq_data, spec_size, plot_features = False, config = config)
         
@@ -56,7 +72,7 @@ def feature_gen(file_list, spec_size, config = None):
         #tmp_psd = np.stack((feature_dict['psd'], feature_dict['variencespectrum'], feature_dict['differentialspectrumdensity'], feature_dict['min_spectrum'], feature_dict['min_spectrum']), axis=-1)
         
 
-        #plt.pcolormesh(Zxx_dat)
+        #plt.pcolormesh(feature_dict['magnitude'])
         #plt.show()
     return [output_list_mean, output_list_max, output_list_min, output_list_var, output_list_spec, output_list_cec, output_list_fft]
 
