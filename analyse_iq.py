@@ -11,6 +11,13 @@ sig = ['CW', 'Static Carrier', 'SSB', 'AM']
 config = configparser.ConfigParser()
 config.read('sdl_config.ini')
 
+def norm_data(X):
+    delta = np.max(X)-np.min(X)
+    if delta != 0:
+        return (X-np.min(X))/(np.max(X)-np.min(X))
+    else:
+        return X
+
 for i in range(0, 4):
     data = np.load(load_dir+iq_file[i]+'.npz')
     #print(data.keys())
@@ -37,10 +44,16 @@ for i in range(0, 4):
         ###output_dict['hilb_spectrum'] = normalise_spectrogram(Zxx_mag_hilb, spec_size, spec_size)
     #####
     plt.subplot(2, 2, i+1)
-    plt.title('Magnitude Spectrogram - '+sig[i])
-    plt.pcolormesh(np.linspace(0, iq_len/fs, 256), np.linspace(-fs/2, fs/2, 256), feature_list['magnitude'])
-    plt.xlabel('Time/s')
-    plt.ylabel('Frequency/Hz')
+    plt.title('2D Fourier Transform - '+sig[i])
+    #print(feature_list['differentialspectrum_freq'])
+    plt.pcolormesh(feature_list['phase'])
+    #plt.pcolormesh(np.linspace(0, iq_len/fs, 256), np.linspace(-fs/2, fs/2, 256), feature_list['corrcoef'])
+    plt.xlabel('')
+    plt.ylabel('')
+    
+    #plt.plot(np.linspace(-fs/2, fs/2, 256), norm_data(feature_list['max_spectrum']))
+    #plt.xlabel('Frequency/Hz')
+    #plt.ylabel('Normalised Power')
 
 plt.tight_layout()
 plt.show()
