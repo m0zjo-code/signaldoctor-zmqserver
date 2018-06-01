@@ -43,7 +43,7 @@ def npmax(l):
     max_val = l[max_idx]
     return (max_idx, max_val)
 
-def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/', LOG_IQ = True, LOG_SPEC = True, config = None):
+def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/', LOG_IQ = True, LOG_SPEC = True, config = None, roll = True):
     """
     Write IQ data into npy file
     The MATLAB *.mat file can also be used
@@ -62,7 +62,7 @@ def save_IQ_buffer(channel_dict, output_format = 'npz', output_folder = 'logs/',
             print("Invalid Output Format Specified")
     # Save Spec
     if LOG_SPEC:
-        feature_dict = generate_features(channel_dict['local_fs'], channel_dict['iq_data'], plot_features=plot_features, config=config)
+        feature_dict = generate_features(channel_dict['local_fs'], channel_dict['iq_data'], plot_features=plot_features, config=config, roll=roll)
         imsave(output_folder+filename+".png", feature_dict['magnitude'])
 
 ## From https://stackoverflow.com/questions/2257441/random-string-generation-with-upper-case-letters-and-digits-in-python
