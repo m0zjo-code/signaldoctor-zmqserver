@@ -1,4 +1,4 @@
-from keras.models import model_from_json
+  from keras.models import model_from_json
 from keras.models import load_model
 
 from keras.utils import np_utils # utilities for one-hot encoding of ground truth values
@@ -15,12 +15,27 @@ import matplotlib.pyplot as plt
 config = configparser.ConfigParser()
 config.read('sdl_config.ini')
 
+parser = argparse.ArgumentParser(description='Train a CNN')
+parser.add_argument('--weights', help='Location of Network Weights', action="store", dest="nweights")
+parser.add_argument('--arch', help='Location of Network Arch File', action="store", dest="narch")
+parser.add_argument('--test', help='Location of Network Test Set', action="store", dest="testloc")
+parser.add_argument('--analysis', help='Location of Analysis Files', action="store", dest="analysisfiles")
+parser.add_argument('--mode', help='Feature Generation Mode', action="store", dest="mode")
+args = parser.parse_args()
+
 import sys
 
-network_definition_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGNOISE31052018_Adadelta_4_1_1527790557.nn"
-network_weights_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGNOISE31052018_Adadelta_4_1_1527790557.h5"
+#network_definition_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGNOISE31052018_Adadelta_4_1_1527790557.nn"
+#network_weights_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGNOISE31052018_Adadelta_4_1_1527790557.h5"
 
-data_test_set = "/mnt/datastore/FYP/training_sets/training31052018/MagSpecTrainingData.npz"
+#data_test_set = "/mnt/datastore/FYP/training_sets/training31052018/MagSpecTrainingData.npz"
+
+network_definition_location = args.narch
+network_weights_location = args.nweights
+
+#data_test_set = "/mnt/datastore/FYP/training_sets/training31052018/MeanPSDTrainingData.npz"
+#data_test_set = "/home/jonathan/signaldoctor-zmqserver/nnetsetup/MeanPSDTrainingData.npz"
+data_test_set = args.testloc
 
 def norm_data(X):
     return (X-np.min(X))/(np.max(X)-np.min(X))
@@ -84,8 +99,8 @@ print(loaded_model.metrics_names)
 print(scores)
 
 ### Now to generate 
-input_folder = "/mnt/datastore/FYP/training_sets/reducedset31052018"
-
+#input_folder = "/mnt/datastore/FYP/training_sets/reducedset31052018"
+input_folder = args.analysisfiles
 
 class_index = {}
 class_index['CARRIER'] = 0
@@ -94,7 +109,7 @@ class_index['AM'] = 2
 class_index['FSK'] = 3
 class_index['CW'] = 4
 
-filename_prefix = str(int(time.time())) + "_MAG"
+filename_prefix = str(int(time.time())) + "_" + args.mode
 
 def awgn(iq_data, snr):
     no_samples = iq_data.shape[0]
