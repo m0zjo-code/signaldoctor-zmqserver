@@ -11,7 +11,9 @@ SPEC_SIZE = 256 ## NxN input tensor size
 ADD_RANDOM_NOISE_LEVEL = True
 
 #input_folder = "/media/jonathan/ea2eea90-b89c-4e24-b854-05970b317ba4/HF_Reduced/HF_Dataset"
-input_folder = "/home/jonathan/HF_Dataset"
+#input_folder = "/home/jonathan/HF_Dataset"
+input_folder = "/mnt/datastore/FYP/training_sets/HF_SetV3"
+
 
 LOAD_FROM_DATASTORE = True
 

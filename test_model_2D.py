@@ -17,8 +17,8 @@ config.read('sdl_config.ini')
 
 import sys
 
-network_definition_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGSPEC300518_Adadelta_4_1_1527760237.nn"
-network_weights_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGSPEC300518_Adadelta_4_1_1527760237.h5"
+network_definition_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGNOISE31052018_Adadelta_4_1_1527790557.nn"
+network_weights_location = "/home/jonathan/SIGNAL_CNN_TRAIN_KERAS/MAGNOISE31052018_Adadelta_4_1_1527790557.h5"
 
 data_test_set = "/mnt/datastore/FYP/training_sets/training31052018/MagSpecTrainingData.npz"
 
@@ -98,6 +98,9 @@ filename_prefix = str(int(time.time())) + "_MAG"
 
 def awgn(iq_data, snr):
     no_samples = iq_data.shape[0]
+    
+    print(no_samples)
+    
     abs_iq = np.abs(iq_data*iq_data.conj())
     signal_power = np.sum(abs_iq)/no_samples
     k = signal_power * 10**(-snr/20)
