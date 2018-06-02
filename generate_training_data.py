@@ -29,8 +29,8 @@ def awgn(iq_data, snr):
     signal_power = np.sum(abs_iq)/no_samples
     k = signal_power * 10**(-snr/20)
     noise_output = np.empty((no_samples), dtype=np.complex)
-    noise_output.real = np.random.normal(0,1,no_samples) * np.sqrt(k)
-    noise_output.imag = np.random.normal(0,1,no_samples) * np.sqrt(k)
+    noise_output.real = 2 * np.random.normal(0,1,no_samples) * np.sqrt(k)
+    noise_output.imag = 2 * np.random.normal(0,1,no_samples) * np.sqrt(k)
     return iq_data+noise_output
 
 def feature_gen(file_list, spec_size, config = None):
