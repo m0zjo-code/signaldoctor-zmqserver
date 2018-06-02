@@ -1,4 +1,4 @@
-  from keras.models import model_from_json
+from keras.models import model_from_json
 from keras.models import load_model
 
 from keras.utils import np_utils # utilities for one-hot encoding of ground truth values
@@ -7,7 +7,7 @@ import numpy as np
 import configparser
 
 import signaldoctorlib as sdl
-import os, shutil
+import os, shutil, argparse
 import glob, time
 import matplotlib.pyplot as plt
 
@@ -114,14 +114,14 @@ filename_prefix = str(int(time.time())) + "_" + args.mode
 def awgn(iq_data, snr):
     no_samples = iq_data.shape[0]
     
-    print(no_samples)
+    #print(no_samples)
     
     abs_iq = np.abs(iq_data*iq_data.conj())
     signal_power = np.sum(abs_iq)/no_samples
     k = signal_power * 10**(-snr/20)
     noise_output = np.empty((no_samples), dtype=np.complex)
-    noise_output.real = np.random.normal(0,1,no_samples) * np.sqrt(k)
-    noise_output.imag = np.random.normal(0,1,no_samples) * np.sqrt(k)
+    noise_output.real = 2 * np.random.normal(0,1,no_samples) * np.sqrt(k)
+    noise_output.imag = 2 * np.random.normal(0,1,no_samples) * np.sqrt(k)
     return iq_data+noise_output
 
 def feature_gen(file_list, spec_size, config = None, snr = None):
@@ -131,7 +131,7 @@ def feature_gen(file_list, spec_size, config = None, snr = None):
         fs, iq_data = load_npz(filename)
         #print("%i samples loaded at a rate of %f" % (len(iq_data), fs))
         #print("We have %f s of data" % (len(iq_data)/fs))
-        print("Reading-->>",filename)
+        #print("Reading-->>",filename)
         
         ## Do noise addition here!
         iq_data = awgn(iq_data, snr)
@@ -139,7 +139,7 @@ def feature_gen(file_list, spec_size, config = None, snr = None):
         feature_dict = sdl.generate_features(fs, iq_data, spec_size, plot_features = False, config = config)
         
         #tmp_spec = np.stack((feature_dict['magnitude'], feature_dict['phase'], feature_dict['corrcoef'], feature_dict['differentialspectrum_freq'], feature_dict['differentialspectrum_time']), axis=-1)
-        output_list.append(feature_dict['magnitude'])
+        output_list.append(feature_dict[args.mode])
         
         #plt.pcolormesh(feature_dict['magnitude'])
         #plt.show()
@@ -149,7 +149,7 @@ with open('results_%s.log'%filename_prefix, "a") as f:
     f.write("%s, %s, %s\n"%("Class", "SNR", "Accuracy"))
 
 
-for snr in range(-20, 20+1):
+for snr in range(-40, 20+1):
     for sig in os.listdir(input_folder):
         sig_input_folder = input_folder + "/" + sig
         if os.path.isdir(sig_input_folder):
