@@ -133,7 +133,7 @@ for snr in range(10, 20+1):
                     filename_list.append(os.path.join(sig_input_folder, fileZ))
             SPEC_SIZE = 256
             
-            
+            score_output = []
             for i in range(0, len(modes)):
                 data_list = feature_gen(filename_list, SPEC_SIZE, config = config, snr = snr, mode = modes[i])
                 data_list = np.asarray(data_list)
@@ -145,9 +145,11 @@ for snr in range(10, 20+1):
                 data_list = norm_data(data_list)
                 data_list = np.expand_dims(data_list, axis=-1)
                 
-                scores = network_list[i][0].evaluate(data_list, Y_test_SNR, verbose=1)  # Evaluate the trained model on the test set!
-                print("Mode:", modes[i], "SNR:", snr)
-                print("\n%s: %.2f%%" % (network_list[i][0].metrics_names[1], scores[1]*100))
+                #scores = network_list[i][0].evaluate(data_list, Y_test_SNR, verbose=1)  # Evaluate the trained model on the test set!
+                #print("Mode:", modes[i], "SNR:", snr)
+                #print("%s: %.2f%%" % (network_list[i][0].metrics_names[1], scores[1]*100))
+                result = network_list[i][0].predict(data_list, verbose=1)
+                print(result)
 
             #Y_predict = loaded_model.predict(data_list)
             #conf_matx = confusion_matrix(Y_test_SNR.argmax(axis=1), Y_predict.argmax(axis=1))
