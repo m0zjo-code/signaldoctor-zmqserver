@@ -2,7 +2,7 @@ from keras.models import model_from_json
 from keras.models import load_model
 
 from keras.utils import np_utils # utilities for one-hot encoding of ground truth values
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import confusion_matrix, accuracy_score
 import numpy as np
 import configparser
 
@@ -68,7 +68,7 @@ def load_npz(filename):
 input_folder = "/media/jonathan/ea2eea90-b89c-4e24-b854-05970b317ba4/HF_Reduced/HF_Dataset"
 input_folder = "/mnt/datastore/FYP/training_sets/HF_SetV4_NOISE_reduced"
 
-modes = [
+feature_gen_modes = [
     "corrcoef",
     "fft_spectrum",
     "magnitude",
@@ -134,13 +134,11 @@ for snr in range(10, 20+1):
             SPEC_SIZE = 256
             
             score_output = []
-            for i in range(0, len(modes)):
-                data_list = feature_gen(filename_list, SPEC_SIZE, config = config, snr = snr, mode = modes[i])
+            for i in range(0, len(feature_gen_modes)):
+                data_list = feature_gen(filename_list, SPEC_SIZE, config = config, snr = snr, mode = feature_gen_modes[i])
                 data_list = np.asarray(data_list)
             
                 #run Classification
-                y_test_SNR = np.ones((data_list.shape[0])) * network_list[i][1][sig]
-                Y_test_SNR = np_utils.to_categorical(y_test_SNR, num_classes)
                 data_list = data_list.astype('float32')
                 data_list = norm_data(data_list)
                 data_list = np.expand_dims(data_list, axis=-1)
@@ -159,9 +157,14 @@ for snr in range(10, 20+1):
             
             aggregated_output = np.argmax(score_output, axis=1)
             
-            conf = confusion_matrix(y_test_SNR, aggregated_output)
+            print(aggregated_output)
             
-            print(conf)
+            y_test_SNR = np.ones((data_list.shape[0])) * network_list[i][1][sig]
+            Y_test_SNR = np_utils.to_categorical(y_test_SNR, num_classes)
+            
+            score = accuracy_score(y_test_SNR, aggregated_output)
+            
+            print("Score, "score)
             
             with open('results_%s.log'%filename_prefix, "a") as f:
                 f.write("%s, %f, %f\n"%(sig, snr, scores[1]*100))
