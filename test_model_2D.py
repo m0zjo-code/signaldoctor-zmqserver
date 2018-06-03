@@ -103,11 +103,12 @@ print(scores)
 input_folder = args.analysisfiles
 
 class_index = {}
-class_index['CARRIER'] = 0
+class_index['CARRIER'] = 2
 class_index['SSB'] = 1
-class_index['AM'] = 2
-class_index['FSK'] = 3
-class_index['CW'] = 4
+class_index['AM'] = 4
+class_index['FSK'] = 0
+class_index['CW'] = 5
+class_index['NOISE'] = 3
 
 filename_prefix = str(int(time.time())) + "_" + args.mode
 
