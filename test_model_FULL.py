@@ -190,8 +190,8 @@ for snr in range(10, 20+1):
     conf_matx = confusion_matrix(y_true, y_pred)
     print(conf_matx)
     
-    with open('%s_acc.log'%filename_prefix, "a") as f:
-        f.write("acc\n")
+    with open('%s_acc.log'%(filename_prefix), "a") as f:
+        f.write("SNR: %i\n" % snr)
         f.write("%.4f%%" % (score*100))
         f.write('\n')
         f.write(str(conf_matx))
