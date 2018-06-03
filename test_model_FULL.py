@@ -121,7 +121,7 @@ with open('results_%s.log'%filename_prefix, "a") as f:
     f.write("%s, %s, %s\n"%("Class", "SNR", "Accuracy"))
 
 
-for snr in range(10, 20+1):
+for snr in range(-40, 20+1):
     full_score = [[],[]]
     
     for sig in os.listdir(input_folder):
@@ -191,6 +191,7 @@ for snr in range(10, 20+1):
     print(conf_matx)
     
     with open('%s_acc.log'%(filename_prefix), "a") as f:
+        f.write('--------------------------------------')
         f.write("SNR: %i\n" % snr)
         f.write("%.4f%%" % (score*100))
         f.write('\n')
