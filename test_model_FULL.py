@@ -122,10 +122,10 @@ with open('results_%s.log'%filename_prefix, "a") as f:
 
 
 for snr in range(10, 20+1):
+    full_score = [[],[]]
+    
     for sig in os.listdir(input_folder):
         sig_input_folder = input_folder + "/" + sig
-        
-        full_score = [[],[]]
         
         if os.path.isdir(sig_input_folder):
             print("Processing from --->>>>>>", sig_input_folder, sig, "SNR:", snr)
@@ -181,20 +181,20 @@ for snr in range(10, 20+1):
             with open('results_%s.log'%filename_prefix, "a") as f:
                 f.write("%s, %f, %f\n"%(sig, snr, score*100))
                 
-        # Process whole set of classes to get conf_matrix
-        y_true = np.asarray(full_score[0]).flatten()
-        y_pred = np.asarray(full_score[1]).flatten()
-        
-        score = accuracy_score(y_true, y_pred)
-        print("Score, ", score)
-        conf_matx = confusion_matrix(y_true, y_pred)
-        print(conf_matx)
-        
-        with open('%s_acc.log'%filename_prefix, "a") as f:
-            f.write("acc\n")
-            f.write("%.4f%%" % (score*100))
-            f.write('\n')
-            f.write(str(conf_matx))
+    # Process whole set of classes to get conf_matrix
+    y_true = np.asarray(full_score[0]).flatten()
+    y_pred = np.asarray(full_score[1]).flatten()
+    
+    score = accuracy_score(y_true, y_pred)
+    print("Score, ", score)
+    conf_matx = confusion_matrix(y_true, y_pred)
+    print(conf_matx)
+    
+    with open('%s_acc.log'%filename_prefix, "a") as f:
+        f.write("acc\n")
+        f.write("%.4f%%" % (score*100))
+        f.write('\n')
+        f.write(str(conf_matx))
 
 
 
