@@ -32,6 +32,9 @@ import sys
 #data_test_set = "/mnt/datastore/FYP/training_sets/training31052018/MagSpecTrainingData.npz"
 
 network_prefix = "/media/jonathan/ea2eea90-b89c-4e24-b854-05970b317ba4/prototype_networks/"
+network_prefix = "/mnt/datastore/FYP/prototypenetworks/"
+
+
 
 network_definition_location = [
     network_prefix+"CecSpec_Adadelta_4_1_1527900104",
