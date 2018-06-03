@@ -182,13 +182,19 @@ for snr in range(10, 20+1):
                 f.write("%s, %f, %f\n"%(sig, snr, score*100))
                 
         # Process whole set of classes to get conf_matrix
-        y_true = np.flatten(np.asarray(full_score[0]))
-        y_pred = np.flatten(np.asarray(full_score[1]))
+        y_true = np.asarray(full_score[0]).flatten()
+        y_pred = np.asarray(full_score[1]).flatten()
         
         score = accuracy_score(y_true, y_pred)
         print("Score, ", score)
-        conf = confusion_matrix(y_true, y_pred)
-        print(conf)
+        conf_matx = confusion_matrix(y_true, y_pred)
+        print(conf_matx)
+        
+        with open('%s_acc.log'%filename_prefix, "a") as f:
+            f.write("acc\n")
+            f.write("%.4f%%" % (score*100))
+            f.write('\n')
+            f.write(str(conf_matx))
 
 
 
