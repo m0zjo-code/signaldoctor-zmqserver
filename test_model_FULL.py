@@ -148,15 +148,21 @@ for snr in range(10, 20+1):
                 #scores = network_list[i][0].evaluate(data_list, Y_test_SNR, verbose=1)  # Evaluate the trained model on the test set!
                 #print("Mode:", modes[i], "SNR:", snr)
                 #print("%s: %.2f%%" % (network_list[i][0].metrics_names[1], scores[1]*100))
-                result = network_list[i][0].predict(data_list, verbose=1)
-                print(result.shape)
-
-            #Y_predict = loaded_model.predict(data_list)
-            #conf_matx = confusion_matrix(Y_test_SNR.argmax(axis=1), Y_predict.argmax(axis=1))
-            #print(conf_matx)
-            #print(type(loaded_model))
-            #print(loaded_model.metrics_names)
-            print(scores)
+                score_output.append(network_list[i][0].predict(data_list, verbose=1))
+                
+            score_output = np.asarray(score_output)
+            
+            # If we want to weight, do it here
+            # weightings = np.array([0, 1, 2, 3, 4, 5, 6])
+            # score_output = np.transpose(score_output.transpose()*weightings)
+            score_output = np.sum(score_output, axis = 0)
+            
+            aggregated_output = np.argmax(score_output, axis=1)
+            
+            conf = confusion_matrix(y_test_SNR, aggregated_output)
+            
+            print(conf)
+            
             with open('results_%s.log'%filename_prefix, "a") as f:
                 f.write("%s, %f, %f\n"%(sig, snr, scores[1]*100))
 
