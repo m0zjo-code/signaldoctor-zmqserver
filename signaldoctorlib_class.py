@@ -21,6 +21,11 @@ def get_spec_model(modelname=None, indexname=None):
     loaded_model = model_from_json(loaded_model_json)
     # load weights into new model
     loaded_model.load_weights("%s.h5"%(modelname))
+    
+    loaded_model.compile(loss='categorical_crossentropy',
+        optimizer='Adamax',
+        metrics=['accuracy'])
+    
     print("Loaded -->> %s model from disk" % modelname)
     
     ## https://stackoverflow.com/questions/6740918/creating-a-dictionary-from-a-csv-file
@@ -30,6 +35,7 @@ def get_spec_model(modelname=None, indexname=None):
         for row in reader:
             k, v = row
             d[int(v)] = k
+            d[str(k).split("/")[-1].split(".")[0]] = int(v)
     
     return loaded_model, d
 
