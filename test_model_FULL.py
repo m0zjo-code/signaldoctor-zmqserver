@@ -124,6 +124,9 @@ with open('results_%s.log'%filename_prefix, "a") as f:
 for snr in range(10, 20+1):
     for sig in os.listdir(input_folder):
         sig_input_folder = input_folder + "/" + sig
+        
+        full_score = [[],[]]
+        
         if os.path.isdir(sig_input_folder):
             print("Processing from --->>>>>>", sig_input_folder, sig, "SNR:", snr)
             filename_list = []
@@ -132,6 +135,7 @@ for snr in range(10, 20+1):
                 if fileZ.endswith(".npz"):
                     filename_list.append(os.path.join(sig_input_folder, fileZ))
             SPEC_SIZE = 256
+            
             
             score_output = []
             for i in range(0, len(feature_gen_modes)):
@@ -146,29 +150,45 @@ for snr in range(10, 20+1):
                 #scores = network_list[i][0].evaluate(data_list, Y_test_SNR, verbose=1)  # Evaluate the trained model on the test set!
                 #print("Mode:", modes[i], "SNR:", snr)
                 #print("%s: %.2f%%" % (network_list[i][0].metrics_names[1], scores[1]*100))
-                score_output.append(network_list[i][0].predict(data_list, verbose=1))
+                network_prediction = network_list[i][0].predict(data_list, verbose=1)
+                score_output.append(network_prediction)
                 
             score_output = np.asarray(score_output)
             
             # If we want to weight, do it here
             # weightings = np.array([0, 1, 2, 3, 4, 5, 6])
             # score_output = np.transpose(score_output.transpose()*weightings)
+            
+            # Initially we sum the array across the feature axis to get an aggregated sum
+            # For an equally weighted set, the max a result can get is 6
             score_output = np.sum(score_output, axis = 0)
             
+            # Get the max value argument across the signal sample axis
             aggregated_output = np.argmax(score_output, axis=1)
-            
             print(aggregated_output)
             
+            # Generate correct class vector
             y_test_SNR = np.ones((data_list.shape[0])) * network_list[i][1][sig]
-            Y_test_SNR = np_utils.to_categorical(y_test_SNR, num_classes)
+            #Y_test_SNR = np_utils.to_categorical(y_test_SNR, num_classes)
             
             score = accuracy_score(y_test_SNR, aggregated_output)
+            
+            full_score[0].append(y_test_SNR)
+            full_score[1].append(aggregated_output)
             
             print("Score, ", score)
             
             with open('results_%s.log'%filename_prefix, "a") as f:
-                f.write("%s, %f, %f\n"%(sig, snr, scores[1]*100))
-
+                f.write("%s, %f, %f\n"%(sig, snr, score*100))
+                
+        # Process whole set of classes to get conf_matrix
+        y_true = np.flatten(np.asarray(full_score[0]))
+        y_pred = np.flatten(np.asarray(full_score[1]))
+        
+        score = accuracy_score(y_true, y_pred)
+        print("Score, ", score)
+        conf = confusion_matrix(y_true, y_pred)
+        print(conf)
 
 
 
