@@ -164,7 +164,7 @@ for snr in range(10, 20+1):
             
             score = accuracy_score(y_test_SNR, aggregated_output)
             
-            print("Score, "score)
+            print("Score, ", score)
             
             with open('results_%s.log'%filename_prefix, "a") as f:
                 f.write("%s, %f, %f\n"%(sig, snr, scores[1]*100))
