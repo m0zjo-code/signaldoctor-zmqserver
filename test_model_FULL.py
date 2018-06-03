@@ -146,8 +146,8 @@ for snr in range(10, 20+1):
                 data_list = np.expand_dims(data_list, axis=-1)
                 
                 scores = network_list[i][0].evaluate(data_list, Y_test_SNR, verbose=1)  # Evaluate the trained model on the test set!
-
-            print("\n%s: %.2f%%" % (loaded_model.metrics_names[1], scores[1]*100))
+                print("Mode:", modes[i], "SNR:", snr)
+                print("\n%s: %.2f%%" % (network_list[i][0].metrics_names[1], scores[1]*100))
 
             #Y_predict = loaded_model.predict(data_list)
             #conf_matx = confusion_matrix(Y_test_SNR.argmax(axis=1), Y_predict.argmax(axis=1))
