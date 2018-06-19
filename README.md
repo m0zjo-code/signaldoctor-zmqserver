@@ -1,8 +1,11 @@
+
 # Signal Doctor
 
-![SD Logo](https://raw.githubusercontent.com/m0zjo-code/signaldoctor-zmqserver/master/docs/sdlogo.png?token=ALDzqCvSIUXJpBcQLG5wDF6RKRzOOui0ks5a5N2EwA%3D%3D)
-
 This is the development page for Jonathan Rawlinson's Final Year Project (FYP). 
+
+For info on training CNNs please look here ---->>> [https://github.com/m0zjo-code/SIGNAL_CNN_TRAIN_KERAS](https://github.com/m0zjo-code/SIGNAL_CNN_TRAIN_KERAS)
+
+For info on classifying meteor scatter please head over to here ----->>>> [https://github.com/m0zjo-code/meteordoctor](https://github.com/m0zjo-code/meteordoctor})
 
 #### Introduction
 The Radio Frequency (RF) spectrum is under high demand all over the world. With the advancement of Long Term Evolution (LTE, 4G cellular radio) and 5G on the way, the RF spectrum is going to be even harder to secure for new services due to the extra bandwidth that will be required. In addition to the bandwidth demand, new services also need to work around existing services such as Global System for Mobile Communications (GSM, 2G) or WiFi.
@@ -12,10 +15,8 @@ To enable future cognitive communications systems to work effectively and effici
 It is proposed that this problem can be solved utilising neural networks and the power of modern open-source software toolkits and frameworks.
 
 #### Sample IQ Data
-Some sample IQ data is availible to test the system here:
-- [20M Recording - 96 kHz Wav](https://nodejs.org/)
-- [40M Recording - 96 kHz Wav](https://nodejs.org/)
-- [80M Recording - 96 kHz Wav](https://nodejs.org/)
+Some sample IQ data is available to test the system here:
+- [20M Recording - 96 kHz Wav](https://goo.gl/PK8S3v)
 
 These recordings are taken from "SDR RADIO" V3 servers -->> [http://www.sdrspace.com/Version-3](http://www.sdrspace.com/Version-3)
 
@@ -73,18 +74,18 @@ Processing pre-recorded IQ data from a .wav file:
 python3 spectrum_processor.py -i /your/file.wav
 ```
 
-Processing live IQ data from GNURadio:  %%%TBC%%%
+Processing live IQ data from network:  
 ```sh
 python3 spectrum_processor.py -i 127.0.0.1:3343 
 ```
 
 A config file "spectrum_processor.cfg" (default name) controls the main operation parameters.
 
-#### Spectrum Classifier %%%TBC%%%
+#### Spectrum Classifier
 This module takes IQ packets taken from the Spectrum Processor and runs them through the classification network/s.
 The following functions are implemented:
 - Feature calculation
-- The data is run through the neiral network/s
+- The data is run through the neural network/s
 - The predicted signal class, bandwith, location and other misc details are transmitted over the network
 
 ```sh 
@@ -111,9 +112,6 @@ The following python libraries are required:
 sudo -H pip3 install numpy scipy keras tensorflow h5py matplotlib pyfftw pyzmq
 ```
 
-GNURadio is also required (along with support for the radio you want to use).
+SoapySDR is also required (along with support for the radio you want to use).
 
-```sh 
-sudo apt install gnuradio
-```
-
+Install details for your platform can be found here ---->>> [https://github.com/pothosware/SoapySDR/wiki](https://github.com/pothosware/SoapySDR/wiki)
