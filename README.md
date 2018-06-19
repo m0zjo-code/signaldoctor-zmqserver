@@ -16,7 +16,7 @@ It is proposed that this problem can be solved utilising neural networks and the
 
 #### Sample IQ Data
 Some sample IQ data is available to test the system here:
-- [20M Recording - 96 kHz Wav](https://goo.gl/PK8S3v)
+- [Google Drive Link](https://goo.gl/PK8S3v)
 
 These recordings are taken from "SDR RADIO" V3 servers -->> [http://www.sdrspace.com/Version-3](http://www.sdrspace.com/Version-3)
 
